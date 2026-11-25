@@ -38,6 +38,9 @@
 |---|---|
 | Цифры канала, что сработало, план улучшений (2026-11-24) | `notes/youtube-channel-review.md` |
 | Голос канала (шаблон, пока не заполнен) | `.claude/youtube/voice.md`; yt-скилы ищут `~/.claude/youtube/voice.md` |
+| Сценарии, хуки, заголовки серии «Бункер» (A, B, C) | `series/bunker/scripts.md` |
+| Раскадровки (PNG) и генератор кадров | `series/bunker/storyboard/`, `series/bunker/build_storyboard.py` |
+| Идеи следующих роликов | `series/ideas-2026-11-25.md` |
 | Скилы | `.claude/skills/<имя>/SKILL.md` |
 | ZIP-архивы yt-скилов для загрузки в claude.ai | `dist/` |
 | Лицензии скилов | `.claude/skills/YOUTUBE-AGENT-SKILL-LICENSE`, `humanizer/LICENSE`, `caveman/LICENSE` |
@@ -52,4 +55,5 @@
 
 - Формула хита: «Что если...» + угроза/выживание + конкретный срок. Лучший ролик «Бункер за 365 дней», 41,7x.
 - 93,5% просмотров из ленты Shorts: обложка почти не влияет, важны первые 2-3 секунды и заголовок.
+- `hookscore.py` работает по английским словам, на русском его не использовать; `title.py` на русском работает.
 - vidIQ не отдаёт CTR и показы; TikTok не подключён.
