@@ -46,22 +46,55 @@ def lamp(x=180, y=0, r=150, on=True):
             f'<circle cx="{x}" cy="{y+40}" r="{r}" fill="url(#lg{x}{y})"/><line x1="{x}" y1="0" x2="{x}" y2="{y+18}" stroke="#888"/><circle cx="{x}" cy="{y+24}" r="8" fill="{LIGHT}"/>')
 
 
-def person(x, y, c="#9aa5b1", s=1.0, pack=False, down=False, lie=False):
-    """x,y = ступни. Рост около 150*s."""
-    if not lie:
-        s, y = s * 1.4, min(y + 70, 600)
+def person(x, y, who="hero", s=1.0, pack=False, down=False, lie=False, mood="calm"):
+    """Люди с одеждой. hero = инженер (куртка со светоотражающей полосой, простое лицо).
+    friend = механик (комбинезон, кепка, лицо без черт). shadow = силуэт."""
+    P = {"hero": dict(top="#2f5d8a", pants="#2b2f3a", boot="#14161a", skin="#d9a47e"),
+         "friend": dict(top="#6b7a4a", pants="#58663c", boot="#14161a", skin="#c99a78"),
+         "shadow": dict(top="#14181d", pants="#14181d", boot="#14181d", skin="#14181d")}[who]
+    face = who == "hero"
+
+    def head(hx, hy, show_face=True):
+        h = f'<circle cx="{hx}" cy="{hy}" r="15" fill="{P["skin"]}"/>'
+        if who == "hero":
+            h += f'<path d="M{hx-15} {hy-2} a15 15 0 0 1 30 0 q-15 -9 -30 0z" fill="#2a1d14"/>'
+        elif who == "friend":
+            h += f'<path d="M{hx-16} {hy-3} a16 16 0 0 1 32 0z" fill="#a8412f"/><rect x="{hx-2}" y="{hy-5}" width="22" height="5" rx="2" fill="#a8412f"/>'
+        if face and show_face:
+            br = {"calm": 0, "worried": 2, "pain": 3}[mood]
+            h += f'<circle cx="{hx-5}" cy="{hy+1}" r="1.9" fill="#1a1a1a"/><circle cx="{hx+5}" cy="{hy+1}" r="1.9" fill="#1a1a1a"/>'
+            if br:
+                h += f'<line x1="{hx-9}" y1="{hy-4-br+3}" x2="{hx-2}" y2="{hy-4}" stroke="#1a1a1a" stroke-width="1.6"/><line x1="{hx+9}" y1="{hy-4-br+3}" x2="{hx+2}" y2="{hy-4}" stroke="#1a1a1a" stroke-width="1.6"/>'
+            mouth = {"calm": f"M{hx-4} {hy+8} h8", "worried": f"M{hx-4} {hy+10} q4 -4 8 0", "pain": f"M{hx-4} {hy+10} q4 -4 8 0"}[mood]
+            h += f'<path d="{mouth}" stroke="#7a3b2b" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
+        return h
+
     if lie:
-        return (f'<g transform="translate({x},{y}) scale({s})"><rect x="-60" y="-26" width="120" height="26" rx="12" fill="{c}"/>'
-                f'<circle cx="-70" cy="-20" r="15" fill="{c}"/></g>')
-    hy = -122 if not down else -104
-    hx = 0 if not down else 10
-    g = f'<g transform="translate({x},{y}) scale({s})"><rect x="-15" y="-52" width="12" height="52" rx="4" fill="{c}"/><rect x="3" y="-52" width="12" height="52" rx="4" fill="{c}"/>'
-    g += f'<rect x="-21" y="-110" width="42" height="64" rx="14" fill="{c}"/>'
+        g = f'<g transform="translate({x},{y}) scale({s})">'
+        g += f'<rect x="10" y="-22" width="64" height="22" rx="8" fill="{P["pants"]}"/><rect x="68" y="-22" width="14" height="22" rx="5" fill="{P["boot"]}"/>'
+        g += f'<rect x="-54" y="-28" width="68" height="28" rx="12" fill="{P["top"]}"/>'
+        if who == "hero":
+            g += f'<rect x="-20" y="-28" width="6" height="28" fill="{AMB}"/>'
+        return g + head(-68, -16, True) + "</g>"
+    s, y = s * 1.4, min(y + 70, 600)
+    hy, hx = (-122, 0) if not down else (-100, 10)
+    g = f'<g transform="translate({x},{y}) scale({s})">'
+    g += f'<rect x="-15" y="-56" width="13" height="46" rx="4" fill="{P["pants"]}"/><rect x="2" y="-56" width="13" height="46" rx="4" fill="{P["pants"]}"/>'
+    g += f'<rect x="-17" y="-12" width="16" height="12" rx="4" fill="{P["boot"]}"/><rect x="1" y="-12" width="16" height="12" rx="4" fill="{P["boot"]}"/>'
     if pack:
-        g += f'<rect x="-34" y="-102" width="16" height="44" rx="6" fill="{ACC}"/>'
-    g += f'<circle cx="{hx}" cy="{hy}" r="15" fill="{c}"/>'
+        g += f'<rect x="-36" y="-104" width="18" height="50" rx="7" fill="#c4472f" stroke="#7d2a1a" stroke-width="2"/>'
     if down:
-        g += f'<circle cx="{hx-8}" cy="{hy+8}" r="7" fill="{c}" stroke="{BG1}" stroke-width="2"/><circle cx="{hx+8}" cy="{hy+8}" r="7" fill="{c}" stroke="{BG1}" stroke-width="2"/>'
+        g += f'<line x1="-18" y1="-98" x2="{hx-9}" y2="{hy+10}" stroke="{P["top"]}" stroke-width="10" stroke-linecap="round"/><line x1="18" y1="-98" x2="{hx+9}" y2="{hy+10}" stroke="{P["top"]}" stroke-width="10" stroke-linecap="round"/>'
+    else:
+        g += f'<rect x="-30" y="-108" width="11" height="52" rx="5" fill="{P["top"]}"/><rect x="19" y="-108" width="11" height="52" rx="5" fill="{P["top"]}"/>'
+    g += f'<rect x="-22" y="-112" width="44" height="64" rx="14" fill="{P["top"]}"/>'
+    if who == "hero":
+        g += f'<rect x="-22" y="-80" width="44" height="7" fill="{AMB}"/><rect x="-22" y="-66" width="44" height="3" fill="{AMB}" fill-opacity=".7"/>'
+    elif who == "friend":
+        g += f'<rect x="-10" y="-96" width="20" height="16" rx="3" fill="#56633a" stroke="#3f4a2a" stroke-width="2"/>'
+    if down:
+        g += f'<circle cx="{hx-9}" cy="{hy+10}" r="6" fill="{P["skin"]}"/><circle cx="{hx+9}" cy="{hy+10}" r="6" fill="{P["skin"]}"/>'
+    g += head(hx, hy, not down)
     return g + "</g>"
 
 
@@ -151,7 +184,7 @@ def a2():
     s = room() + lamp()
     for i in range(5):
         s += barrel(26 + i * 62, 300, 52, 84, 1.0, "219 л" if i == 0 else None)
-    s += person(300, 470, "#9aa5b1", 1.0)
+    s += person(300, 470, "hero", 1.0)
     s += t(180, 120, "3 Л × 365 = 1095 Л", 28, WAT) + t(180, 156, "на одного человека", 16, "#cfd6de", "normal")
     return s + caption(["Ты считал", "на одного"])
 
@@ -160,7 +193,7 @@ def a3():
     s = room() + lamp()
     for i in range(5):
         s += barrel(26 + i * 62, 300, 52, 84, 1.0 if i < 2 else 0.0)
-    s += person(120, 480, "#9aa5b1", 0.9) + person(230, 480, "#7f8fa3", 0.9)
+    s += person(120, 480, "hero", 0.9) + person(230, 480, "friend", 0.9)
     s += t(180, 100, "182", 92, ACC) + t(180, 136, "ДНЯ НА ДВОИХ", 20, "#fff")
     s += bar(30, 230, 300, 0.5, ACC, "0", "365 дней")
     return s + caption(["На двоих воды", "на 182 дня"])
@@ -169,7 +202,7 @@ def a3():
 def a4():
     s = room(True) + door(180, 250, 120)
     s += f'<rect x="120" y="430" width="120" height="8" fill="{AMB}" fill-opacity=".8"/><rect x="146" y="430" width="18" height="8" fill="#000"/><rect x="198" y="430" width="18" height="8" fill="#000"/>'
-    s += person(80, 560, "#9aa5b1", 0.7, down=False)
+    s += person(80, 560, "hero", 0.7, mood="worried")
     s += f'<circle cx="180" cy="250" r="9" fill="{AMB}"/>'
     return s + caption(["Он слышит,", "что ты за дверью"])
 
@@ -178,7 +211,7 @@ def a5():
     s = room(True)
     s += f'<defs><linearGradient id="lt" x1="0" x2="1"><stop offset="0" stop-color="{LIGHT}"/><stop offset="1" stop-color="{LIGHT}" stop-opacity="0"/></linearGradient></defs>'
     s += f'<polygon points="200,60 360,0 360,640 200,430" fill="url(#lt)" fill-opacity=".85"/><rect x="190" y="60" width="14" height="370" fill="{STEEL}"/>'
-    s += person(300, 440, "#1a1d22", 1.1, pack=True) + person(90, 470, "#9aa5b1", 1.0)
+    s += person(300, 440, "shadow", 1.1, pack=True) + person(90, 470, "hero", 1.0, mood="worried")
     return s + caption(["Ты открываешь"])
 
 
@@ -194,7 +227,7 @@ def a6():
 
 def a7():
     s = room() + lamp(180, 0, 120)
-    s += person(120, 500, "#8693a0", 0.9, down=True) + person(250, 500, "#707e8d", 0.9, down=True)
+    s += person(120, 500, "hero", 0.9, down=True) + person(250, 500, "friend", 0.9, down=True)
     s += f'<path d="M170 250 q14 -26 28 0 t28 0" stroke="{ACC}" stroke-width="5" fill="none"/>'
     s += t(180, 110, "голова болит", 24, "#cfd6de") + t(180, 142, "сил нет", 24, "#cfd6de")
     return s + caption(["Организм терпит,", "но плохо"])
@@ -222,7 +255,7 @@ def b2():
     s += f'<circle cx="180" cy="260" r="46" fill="#1d232b" stroke="{AMB}" stroke-width="4"/><rect x="156" y="244" width="48" height="32" rx="6" fill="{AMB}"/>'
     s += f'<circle cx="280" cy="260" r="46" fill="#1d232b" stroke="{ACC}" stroke-width="4"/>' + t(280, 290, "?", 80, ACC)
     s += t(80, 340, "✓", 36, "#2e8b57") + t(180, 340, "✓", 36, "#2e8b57") + t(80, 368, "вода", 16, "#9aa5b1", "normal") + t(180, 368, "еда", 16, "#9aa5b1", "normal") + t(280, 368, "туалет", 16, "#9aa5b1", "normal")
-    s += person(180, 540, "#9aa5b1", 0.7, down=True)
+    s += person(180, 540, "hero", 0.7, mood="worried")
     return s + caption(["Про туалет", "ты не думал"])
 
 
@@ -256,7 +289,7 @@ def b5():
 
 def b6():
     s = room() + lamp(180, 0, 110)
-    s += person(90, 500, "#8693a0", 1.0) + person(270, 500, "#707e8d", 1.0)
+    s += person(90, 500, "hero", 1.0, mood="worried") + person(270, 500, "friend", 1.0)
     s += f'<g stroke="{ACC}" stroke-width="5" fill="none"><path d="M130 300 l30 -14 l-30 -14"/><path d="M230 300 l-30 -14 l30 -14"/></g>'
     s += f'<path d="M150 320 l20 -22 l20 22 l20 -22" stroke="{ACC}" stroke-width="4" fill="none"/>'
     s += t(180, 110, "ссора", 56, ACC) + t(180, 146, "из-за запаха", 19, "#cfd6de", "normal")
@@ -266,7 +299,7 @@ def b6():
 def b7():
     s = room() + lamp()
     s += generator(150, 440, 1.5, smoke=True) + calendar(280, 140, "40", None, 100)
-    s += person(300, 470, "#8693a0", 0.9)
+    s += person(300, 470, "friend", 0.9)
     s += f'<g stroke="{AMB}" stroke-width="4" fill="none" stroke-linecap="round"><path d="M70 330 l-16 -10"/><path d="M60 358 l-22 0"/><path d="M70 384 l-16 10"/></g>'
     s += t(110, 160, "кхх…", 34, "#cfd6de")
     return s + caption(["Генератор кашляет,", "друг: «Включим тут»"])
@@ -283,7 +316,7 @@ def b8():
 # ---------- ролик C ----------
 def c1():
     s = room() + lamp() + generator(130, 440, 1.4, smoke=True, run=True)
-    s += person(280, 470, "#8693a0", 0.9, down=True)
+    s += person(280, 470, "hero", 0.9, down=True)
     s += f'<rect x="196" y="120" width="130" height="60" rx="12" fill="#000" fill-opacity=".6"/>' + t(261, 160, "40:00", 36, ACC)
     s += f'<g stroke="{ACC}" stroke-width="4" fill="none" stroke-linecap="round"><path d="M262 330 l-12 -18"/><path d="M280 322 l0 -22"/><path d="M298 330 l12 -18"/></g>'
     return s + caption(["Через сорок минут", "болит голова"])
@@ -291,7 +324,7 @@ def c1():
 
 def c2():
     s = room() + lamp() + gas(10, 190, 400, 2) + generator(110, 470, 1.3, smoke=False, run=True)
-    s += person(280, 480, "#8693a0", 0.9)
+    s += person(280, 480, "hero", 0.9, mood="pain")
     s += f'<circle cx="180" cy="190" r="44" fill="#000" fill-opacity=".55"/><circle cx="180" cy="190" r="26" fill="none" stroke="#fff" stroke-width="5"/><line x1="160" y1="210" x2="200" y2="170" stroke="{ACC}" stroke-width="6"/>'
     s += t(180, 120, "CO", 56, GAS) + t(180, 290, "без запаха и цвета", 18, "#cfd6de", "normal")
     return s + caption(["Угарный газ", "не пахнет и не виден"])
@@ -300,7 +333,7 @@ def c2():
 def c3():
     s = room(True) + gas(8, 175, 340, 3)
     s += f'<rect x="20" y="360" width="150" height="14" rx="5" fill="{STEEL}"/><rect x="190" y="360" width="150" height="14" rx="5" fill="{STEEL}"/>'
-    s += person(100, 360, "#8693a0", 1.0, lie=True) + person(270, 360, "#707e8d", 1.0, lie=True)
+    s += person(100, 360, "hero", 1.0, lie=True) + person(270, 360, "friend", 1.0, lie=True)
     s += t(60, 270, "Z", 40, "#9aa5b1") + t(95, 235, "z", 28, "#9aa5b1") + t(240, 270, "Z", 40, "#9aa5b1") + t(275, 235, "z", 28, "#9aa5b1")
     s += t(180, 110, "во сне", 44, ACC) + t(180, 146, "организм не жалуется", 18, "#cfd6de", "normal")
     return s + caption(["Это самый", "опасный момент"])
@@ -318,7 +351,7 @@ def c5():
     s += generator(90, 420, 1.2, smoke=False, run=True)
     for r in (60, 110, 170, 240):
         s += f'<path d="M{90+r*0.35:.0f} {360-r*0.5:.0f} a{r} {r} 0 0 1 0 {r}" stroke="{AMB}" stroke-opacity="{0.9-r/320:.2f}" stroke-width="4" fill="none"/>'
-    s += person(300, 440, "#1d2229", 0.9) + f'<circle cx="300" cy="333" r="30" fill="none" stroke="{ACC}" stroke-width="4" stroke-dasharray="6 6"/>'
+    s += person(300, 440, "shadow", 0.9) + f'<circle cx="300" cy="333" r="30" fill="none" stroke="{ACC}" stroke-width="4" stroke-dasharray="6 6"/>'
     s += t(180, 110, "шум слышно далеко", 26, "#fff") + t(180, 146, "снаружи война", 20, ACC)
     return s + caption(["Снаружи", "ставить нельзя"])
 
@@ -326,7 +359,7 @@ def c5():
 def c6():
     s = room(True)
     s += f'<defs><radialGradient id="dk"><stop offset="0" stop-color="{AMB}" stop-opacity=".45"/><stop offset="1" stop-color="{AMB}" stop-opacity="0"/></radialGradient></defs><circle cx="180" cy="300" r="110" fill="url(#dk)"/>'
-    s += person(110, 480, "#59636f", 0.9, down=True) + person(250, 480, "#4a535e", 0.9, down=True)
+    s += person(110, 480, "hero", 0.9, down=True) + person(250, 480, "friend", 0.9, down=True)
     s += f'<rect x="130" y="130" width="100" height="56" rx="8" fill="#1d232b" stroke="{AMB}" stroke-width="4"/><rect x="230" y="148" width="10" height="20" fill="{AMB}"/><rect x="136" y="136" width="30" height="44" fill="{AMB}"/>'
     s += t(180, 230, "2 часа света в день", 20, AMB)
     return s + caption(["Панель, аккумуляторы", "и темнота"])
