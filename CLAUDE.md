@@ -40,6 +40,10 @@
 | Голос канала (шаблон, пока не заполнен) | `.claude/youtube/voice.md`; yt-скилы ищут `~/.claude/youtube/voice.md` |
 | Сценарии, хуки, заголовки серии «Бункер» (A, B, C) | `series/bunker/scripts.md` |
 | Раскадровки (PNG) и генератор кадров | `series/bunker/storyboard/`, `series/bunker/build_storyboard.py` |
+| **Стиль всех роликов (утверждён)**, читать перед любым сценарием | `series/STYLE.md` |
+| Ролики D и E (еда на 9, радиация и вода), раскадровки | `series/bunker/scripts.md`, `storyboard/bunker-D.png`, `bunker-E.png` |
+| Черновики ответов на комментарии под «Бункером» | `series/bunker/comment-replies.md` |
+| Новые заголовки для слабых роликов | `notes/retitles-2026-11-25.md` |
 | Идеи следующих роликов | `series/ideas-2026-11-25.md` |
 | Скилы | `.claude/skills/<имя>/SKILL.md` |
 | ZIP-архивы yt-скилов для загрузки в claude.ai | `dist/` |

@@ -465,10 +465,10 @@ h1{{margin:0 0 6px;font-size:30px}} .m{{color:#9aa5b1;font-size:17px;line-height
 <div class="g">{cards}</div></div></body></html>"""
 
 
-def main():
+def main(videos=None):
     os.makedirs(OUT, exist_ok=True)
     paths = []
-    for v in VIDEOS:
+    for v in (videos or VIDEOS):
         p = os.path.join(OUT, f"bunker-{v['slug']}.html")
         open(p, "w", encoding="utf8").write(sheet(v))
         paths.append(p)
