@@ -46,20 +46,34 @@ def lamp(x=180, y=0, r=150, on=True):
             f'<circle cx="{x}" cy="{y+40}" r="{r}" fill="url(#lg{x}{y})"/><line x1="{x}" y1="0" x2="{x}" y2="{y+18}" stroke="#888"/><circle cx="{x}" cy="{y+24}" r="8" fill="{LIGHT}"/>')
 
 
-def person(x, y, who="hero", s=1.0, pack=False, down=False, lie=False, mood="calm"):
-    """Люди с одеждой. hero = инженер (куртка со светоотражающей полосой, простое лицо).
-    friend = механик (комбинезон, кепка, лицо без черт). shadow = силуэт."""
-    P = {"hero": dict(top="#2f5d8a", pants="#2b2f3a", boot="#14161a", skin="#d9a47e"),
-         "friend": dict(top="#6b7a4a", pants="#58663c", boot="#14161a", skin="#c99a78"),
-         "shadow": dict(top="#14181d", pants="#14181d", boot="#14181d", skin="#14181d")}[who]
-    face = who == "hero"
+KINDS = {
+    "hero": dict(top="#2f5d8a", pants="#2b2f3a", skin="#d9a47e", hair="#2a1d14", hat=None, stripe=True, face=True),
+    "friend": dict(top="#4b5a3a", pants="#3a4530", skin="#c99a78", hair=None, hat="#2f3a26", pocket=True),
+    "mom": dict(top="#d8a94a", pants="#5a3a4a", skin="#e0b090", hair="#4a2f1e", hat=None),
+    "grandpa": dict(top="#8a8f98", pants="#4a4a50", skin="#d8b898", hair=None, hat="#6a5a48"),
+    "kid": dict(top="#c24b4b", pants="#34506a", skin="#e0b090", hair="#3a2a1a", hat=None, k=0.66),
+    "n1": dict(top="#7a5c8a", pants="#3a3a44", skin="#d0a080", hair="#777", hat=None),
+    "n2": dict(top="#5c8a7a", pants="#3d3d3a", skin="#d8b090", hair=None, hat="#8a7a4a"),
+    "n3": dict(top="#9a6a4a", pants="#34384a", skin="#c8a080", hair="#3a2a20", hat=None),
+    "shadow": dict(top="#14181d", pants="#14181d", skin="#14181d", hair=None, hat=None),
+}
+
+
+def person(x, y, who="hero", s=1.0, pack=False, down=False, lie=False, mood="calm", arm_up=False):
+    """Люди. hero = инженер (синяя куртка, светоотражающая полоса, простое лицо). Остальные без лица:
+    friend = военный друг (камуфляж), mom/grandpa/kid = семья, n1-n3 = соседи, shadow = силуэт."""
+    P = KINDS[who]
+    face = P.get("face", False)
+    s = s * P.get("k", 1.0)
 
     def head(hx, hy, show_face=True):
         h = f'<circle cx="{hx}" cy="{hy}" r="15" fill="{P["skin"]}"/>'
-        if who == "hero":
-            h += f'<path d="M{hx-15} {hy-2} a15 15 0 0 1 30 0 q-15 -9 -30 0z" fill="#2a1d14"/>'
-        elif who == "friend":
-            h += f'<path d="M{hx-16} {hy-3} a16 16 0 0 1 32 0z" fill="#a8412f"/><rect x="{hx-2}" y="{hy-5}" width="22" height="5" rx="2" fill="#a8412f"/>'
+        if P.get("hair"):
+            h += f'<path d="M{hx-15} {hy-1} a15 15 0 0 1 30 0 q-15 -9 -30 0z" fill="{P["hair"]}"/>'
+            if who == "mom":
+                h += f'<rect x="{hx-17}" y="{hy-3}" width="6" height="22" rx="3" fill="{P["hair"]}"/><rect x="{hx+11}" y="{hy-3}" width="6" height="22" rx="3" fill="{P["hair"]}"/>'
+        if P.get("hat"):
+            h += f'<path d="M{hx-16} {hy-3} a16 16 0 0 1 32 0z" fill="{P["hat"]}"/><rect x="{hx-2}" y="{hy-5}" width="22" height="5" rx="2" fill="{P["hat"]}"/>'
         if face and show_face:
             br = {"calm": 0, "worried": 2, "pain": 3}[mood]
             h += f'<circle cx="{hx-5}" cy="{hy+1}" r="1.9" fill="#1a1a1a"/><circle cx="{hx+5}" cy="{hy+1}" r="1.9" fill="#1a1a1a"/>'
@@ -71,27 +85,29 @@ def person(x, y, who="hero", s=1.0, pack=False, down=False, lie=False, mood="cal
 
     if lie:
         g = f'<g transform="translate({x},{y}) scale({s})">'
-        g += f'<rect x="10" y="-22" width="64" height="22" rx="8" fill="{P["pants"]}"/><rect x="68" y="-22" width="14" height="22" rx="5" fill="{P["boot"]}"/>'
+        g += f'<rect x="10" y="-22" width="64" height="22" rx="8" fill="{P["pants"]}"/><rect x="68" y="-22" width="14" height="22" rx="5" fill="#14161a"/>'
         g += f'<rect x="-54" y="-28" width="68" height="28" rx="12" fill="{P["top"]}"/>'
-        if who == "hero":
+        if P.get("stripe"):
             g += f'<rect x="-20" y="-28" width="6" height="28" fill="{AMB}"/>'
         return g + head(-68, -16, True) + "</g>"
     s, y = s * 1.4, min(y + 70, 600)
     hy, hx = (-122, 0) if not down else (-100, 10)
     g = f'<g transform="translate({x},{y}) scale({s})">'
     g += f'<rect x="-15" y="-56" width="13" height="46" rx="4" fill="{P["pants"]}"/><rect x="2" y="-56" width="13" height="46" rx="4" fill="{P["pants"]}"/>'
-    g += f'<rect x="-17" y="-12" width="16" height="12" rx="4" fill="{P["boot"]}"/><rect x="1" y="-12" width="16" height="12" rx="4" fill="{P["boot"]}"/>'
+    g += f'<rect x="-17" y="-12" width="16" height="12" rx="4" fill="#14161a"/><rect x="1" y="-12" width="16" height="12" rx="4" fill="#14161a"/>'
     if pack:
         g += f'<rect x="-36" y="-104" width="18" height="50" rx="7" fill="#c4472f" stroke="#7d2a1a" stroke-width="2"/>'
     if down:
         g += f'<line x1="-18" y1="-98" x2="{hx-9}" y2="{hy+10}" stroke="{P["top"]}" stroke-width="10" stroke-linecap="round"/><line x1="18" y1="-98" x2="{hx+9}" y2="{hy+10}" stroke="{P["top"]}" stroke-width="10" stroke-linecap="round"/>'
+    elif arm_up:
+        g += f'<rect x="-30" y="-108" width="11" height="52" rx="5" fill="{P["top"]}"/><line x1="24" y1="-100" x2="44" y2="-150" stroke="{P["top"]}" stroke-width="11" stroke-linecap="round"/><circle cx="44" cy="-153" r="6" fill="{P["skin"]}"/>'
     else:
         g += f'<rect x="-30" y="-108" width="11" height="52" rx="5" fill="{P["top"]}"/><rect x="19" y="-108" width="11" height="52" rx="5" fill="{P["top"]}"/>'
     g += f'<rect x="-22" y="-112" width="44" height="64" rx="14" fill="{P["top"]}"/>'
-    if who == "hero":
+    if P.get("stripe"):
         g += f'<rect x="-22" y="-80" width="44" height="7" fill="{AMB}"/><rect x="-22" y="-66" width="44" height="3" fill="{AMB}" fill-opacity=".7"/>'
-    elif who == "friend":
-        g += f'<rect x="-10" y="-96" width="20" height="16" rx="3" fill="#56633a" stroke="#3f4a2a" stroke-width="2"/>'
+    if P.get("pocket"):
+        g += f'<rect x="-10" y="-96" width="20" height="16" rx="3" fill="#3f4a2a" stroke="#2c351d" stroke-width="2"/>'
     if down:
         g += f'<circle cx="{hx-9}" cy="{hy+10}" r="6" fill="{P["skin"]}"/><circle cx="{hx+9}" cy="{hy+10}" r="6" fill="{P["skin"]}"/>'
     g += head(hx, hy, not down)
@@ -172,249 +188,261 @@ def wrap(inner, num, tm):
     return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}">{inner}{tag}</svg>'
 
 
-# ---------- ролик A ----------
+def siren(op=0.35):
+    return (f'<defs><radialGradient id="sr"><stop offset="0" stop-color="#ff2d2d" stop-opacity="{op}"/><stop offset="1" stop-color="#ff2d2d" stop-opacity="0"/></radialGradient></defs>'
+            f'<circle cx="40" cy="60" r="260" fill="url(#sr)"/><circle cx="330" cy="460" r="240" fill="url(#sr)"/>')
+
+
+def family(y=480, s=0.8, xs=(50, 110, 170, 222, 262)):
+    kinds = ("grandpa", "mom", "hero", "kid", "kid")
+    return "".join(person(x, y, k, s) for x, k in zip(xs, kinds))
+
+
+def icon(cx, cy, kind, color):
+    s = f'<circle cx="{cx}" cy="{cy}" r="46" fill="#1d232b" stroke="{color}" stroke-width="4"/>'
+    if kind == "drop":
+        s += f'<path d="M{cx} {cy-26} q22 30 0 48 q-22 -18 0 -48" fill="{color}"/>'
+    elif kind == "fan":
+        for a in (0, 120, 240):
+            s += f'<ellipse cx="{cx}" cy="{cy-14}" rx="8" ry="16" fill="{color}" transform="rotate({a} {cx} {cy})"/>'
+        s += f'<circle cx="{cx}" cy="{cy}" r="5" fill="#1d232b"/>'
+    elif kind == "bolt":
+        s += f'<path d="M{cx+6} {cy-28} l-20 32 h14 l-6 24 l24 -36 h-14z" fill="{color}"/>'
+    return s
+
+
+def card(x, y, w, h, fill="#1b2028", stroke="#3a4452"):
+    return f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="16" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
+
+
+def bubble(x, y, w, h, text, fill="#fff", color="#111", tail="l", size=17):
+    tx = x + 24 if tail == "l" else x + w - 24
+    s = f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="14" fill="{fill}"/><path d="M{tx} {y+h} l{14 if tail=="l" else -14} 18 l-26 -18z" fill="{fill}"/>'
+    lines = text.split("|")
+    for i, ln in enumerate(lines):
+        s += t(x + w / 2, y + h / 2 + 6 + (i - (len(lines) - 1) / 2) * 22, ln, size, color)
+    return s
+
+
 def a1():
-    s = room(True) + door(180, 270, 120)
-    s += f'<g stroke="{AMB}" stroke-width="5" stroke-linecap="round" fill="none"><path d="M40 190 q-14 30 0 60"/><path d="M22 175 q-22 45 0 90"/><path d="M320 190 q14 30 0 60"/><path d="M338 175 q22 45 0 90"/></g>'
-    s += t(180, 105, "1095 Л", 64, AMB) + t(180, 140, "вся вода на год", 18, "#cfd6de", "normal")
-    return s + caption(["А друг уже", "стучит в дверь"])
+    s = room(True) + siren() + door(180, 270, 115)
+    s += f'<g stroke="{AMB}" stroke-width="5" stroke-linecap="round" fill="none"><path d="M44 190 q-14 30 0 60"/><path d="M26 175 q-22 45 0 90"/><path d="M316 190 q14 30 0 60"/><path d="M334 175 q22 45 0 90"/></g>'
+    s += t(180, 100, "≈11 000", 62, AMB) + t(180, 136, "порций на пятерых, на 2 года", 17, "#cfd6de", "normal")
+    return s + caption(["А в люк", "стучит шестой"])
 
 
 def a2():
-    s = room() + lamp()
-    for i in range(5):
-        s += barrel(26 + i * 62, 300, 52, 84, 1.0, "219 л" if i == 0 else None)
-    s += person(300, 470, "hero", 1.0)
-    s += t(180, 120, "3 Л × 365 = 1095 Л", 28, WAT) + t(180, 156, "на одного человека", 16, "#cfd6de", "normal")
-    return s + caption(["Ты считал", "на одного"])
+    s = room(True) + card(95, 110, 170, 280, "#0d1117")
+    s += t(180, 145, "Друг", 17, "#9aa5b1") + bubble(108, 165, 144, 70, "Через год|начнётся война.", "#2d3b4e", "#fff", "l", 15) + bubble(108, 270, 144, 44, "Никому.", "#2d3b4e", "#fff", "l", 15)
+    s += person(300, 470, "friend", 1.0)
+    return s + caption(["Тот самый друг,", "что писал ночью"])
 
 
 def a3():
-    s = room() + lamp()
-    for i in range(5):
-        s += barrel(26 + i * 62, 300, 52, 84, 1.0 if i < 2 else 0.0)
-    s += person(120, 480, "hero", 0.9) + person(230, 480, "friend", 0.9)
-    s += t(180, 100, "182", 92, ACC) + t(180, 136, "ДНЯ НА ДВОИХ", 20, "#fff")
-    s += bar(30, 230, 300, 0.5, ACC, "0", "365 дней")
-    return s + caption(["На двоих воды", "на 182 дня"])
+    s = room() + lamp() + family(485, 0.8)
+    s += t(180, 96, "11 000 ÷ 6", 48, WAT) + bar(40, 140, 280, 1.0, "#2e8b57", None, None) + t(40, 182, "на пятерых: 24 месяца", 14, "#9aa5b1", "normal", "start")
+    s += bar(40, 212, 280, 20 / 24, ACC, None, None) + t(40, 254, "на шестерых: 20 месяцев", 14, "#ffb4a6", "normal", "start")
+    return s + caption(["На четыре месяца", "меньше"])
 
 
 def a4():
-    s = room(True) + door(180, 250, 120)
-    s += f'<rect x="120" y="430" width="120" height="8" fill="{AMB}" fill-opacity=".8"/><rect x="146" y="430" width="18" height="8" fill="#000"/><rect x="198" y="430" width="18" height="8" fill="#000"/>'
-    s += person(80, 560, "hero", 0.7, mood="worried")
-    s += f'<circle cx="180" cy="250" r="9" fill="{AMB}"/>'
-    return s + caption(["Он слышит,", "что ты за дверью"])
+    s = room() + lamp()
+    s += icon(70, 250, "drop", WAT) + icon(180, 250, "fan", "#2e8b57") + icon(290, 250, "bolt", AMB)
+    for x, lab in ((70, "скважина"), (180, "воздух"), (290, "генератор")):
+        s += t(x, 330, "✓", 34, "#2e8b57") + t(x, 360, lab, 15, "#9aa5b1", "normal")
+    s += person(180, 540, "hero", 0.8, mood="worried")
+    return s + caption(["Это переживаемо"])
 
 
 def a5():
-    s = room(True)
-    s += f'<defs><linearGradient id="lt" x1="0" x2="1"><stop offset="0" stop-color="{LIGHT}"/><stop offset="1" stop-color="{LIGHT}" stop-opacity="0"/></linearGradient></defs>'
-    s += f'<polygon points="200,60 360,0 360,640 200,430" fill="url(#lt)" fill-opacity=".85"/><rect x="190" y="60" width="14" height="370" fill="{STEEL}"/>'
-    s += person(300, 440, "shadow", 1.1, pack=True) + person(90, 470, "hero", 1.0, mood="worried")
+    s = room(True) + door(180, 240, 120)
+    s += f'<defs><linearGradient id="lt5" x1="0" x2="1"><stop offset="0" stop-color="{LIGHT}" stop-opacity="0"/><stop offset="1" stop-color="{LIGHT}"/></linearGradient></defs><path d="M296 150 q40 90 0 190 l30 0 l0 -190z" fill="url(#lt5)"/>'
+    s += person(70, 500, "hero", 1.0, arm_up=True, mood="worried")
     return s + caption(["Ты открываешь"])
 
 
 def a6():
-    s = room() + lamp()
-    for i, x in enumerate((70, 220)):
-        s += f'<rect x="{x}" y="260" width="70" height="86" rx="10" fill="#1d232b" stroke="#6b7480" stroke-width="3"/><rect x="{x+6}" y="{346-40}" width="58" height="34" rx="5" fill="{WAT}"/>'
-        s += t(x + 35, 380, "1,5 Л", 18, WAT)
-    s += t(180, 120, "1,5 Л", 70, WAT) + t(180, 156, "в день каждому", 18, "#cfd6de", "normal") + badge(180, 205, "вдвое меньше", ACC, 190, 20)
-    s += bar(30, 440, 300, 1.0, "#2e8b57", "0", "365 дней: хватит")
-    return s + caption(["По полтора литра", "каждому"])
+    s = room(True) + siren(0.45)
+    s += person(250, 470, "n1", 0.95) + person(320, 470, "n2", 0.9) + person(180, 500, "n3", 0.9)
+    s += person(120, 480, "friend", 1.1)
+    return s + caption(["За ним стоят", "соседи"])
 
 
 def a7():
-    s = room() + lamp(180, 0, 120)
-    s += person(120, 500, "hero", 0.9, down=True) + person(250, 500, "friend", 0.9, down=True)
-    s += f'<path d="M170 250 q14 -26 28 0 t28 0" stroke="{ACC}" stroke-width="5" fill="none"/>'
-    s += t(180, 110, "голова болит", 24, "#cfd6de") + t(180, 142, "сил нет", 24, "#cfd6de")
-    return s + caption(["Организм терпит,", "но плохо"])
+    s = f'<rect width="{W}" height="{H}" fill="#e9c98a"/><circle cx="290" cy="90" r="46" fill="#fff2b8"/><rect y="330" width="{W}" height="310" fill="#7d9a52"/>'
+    s += person(80, 430, "hero", 1.0, arm_up=True) + person(260, 430, "n1", 1.0, arm_up=True)
+    for x in range(0, W, 24):
+        s += f'<rect x="{x}" y="390" width="16" height="110" fill="#8a5a33" stroke="#4a2f1a" stroke-width="2"/>'
+    s += f'<rect x="0" y="420" width="{W}" height="10" fill="#4a2f1a"/>' + t(180, 90, "год назад", 34, "#4a2f1a")
+    return s + caption(["Те, кому ты", "махал через забор"])
 
 
 def a8():
-    s = room() + lamp()
-    s += f'<path d="M130 300 h100 l-12 110 h-76 z" fill="#5b6573" stroke="#8a95a3" stroke-width="3"/><rect x="124" y="288" width="112" height="14" rx="6" fill="#8a95a3"/>'
-    s += t(180, 250, "?", 120, AMB) + t(180, 130, "Куда это девать?", 26, "#fff")
-    s += poll(470)
-    return s + caption(["Открыл бы дверь?"])
+    s = room(True) + siren(0.3) + door(180, 190, 80)
+    s += t(180, 330, "Соседей", 56, "#fff") + t(180, 380, "пустил бы?", 38, ACC) + poll(430)
+    return s + caption(["Да или нет?"])
 
 
-# ---------- ролик B ----------
 def b1():
-    s = room(True) + door(180, 270, 110)
-    s += barrel(30, 380, 54, 84, 0.8, None, "#c8b04a") + barrel(276, 380, 54, 84, 0.9, None, "#c8b04a")
-    s += t(180, 100, "СОТНИ", 56, AMB) + t(180, 140, "литров отходов за год", 19, "#cfd6de", "normal")
-    return s + caption(["Бункер закрыт.", "Выйти нельзя"])
+    s = room(True) + lamp()
+    for i in range(3):
+        for j in range(2):
+            s += barrel(40 + i * 104, 250 + j * 100, 70, 84, 0.9)
+    s += t(180, 100, "30 ТОНН", 58, WAT) + t(180, 138, "воды за два года", 19, "#cfd6de", "normal")
+    return s + caption(["Куда она", "денется?"])
 
 
 def b2():
-    s = room() + lamp()
-    s += f'<circle cx="80" cy="260" r="46" fill="#1d232b" stroke="{WAT}" stroke-width="4"/><path d="M80 232 q20 30 0 48 q-20 -18 0 -48" fill="{WAT}"/>'
-    s += f'<circle cx="180" cy="260" r="46" fill="#1d232b" stroke="{AMB}" stroke-width="4"/><rect x="156" y="244" width="48" height="32" rx="6" fill="{AMB}"/>'
-    s += f'<circle cx="280" cy="260" r="46" fill="#1d232b" stroke="{ACC}" stroke-width="4"/>' + t(280, 290, "?", 80, ACC)
-    s += t(80, 340, "✓", 36, "#2e8b57") + t(180, 340, "✓", 36, "#2e8b57") + t(80, 368, "вода", 16, "#9aa5b1", "normal") + t(180, 368, "еда", 16, "#9aa5b1", "normal") + t(280, 368, "туалет", 16, "#9aa5b1", "normal")
-    s += person(180, 540, "hero", 0.7, mood="worried")
-    return s + caption(["Про туалет", "ты не думал"])
+    s = room() + card(24, 130, 312, 120) + f'<circle cx="62" cy="168" r="18" fill="#3a4452"/>' + t(92, 173, "зритель", 14, "#9aa5b1", "normal", "start")
+    s += t(180, 210, "А куда они будут ходить", 19, "#fff") + t(180, 236, "в туалет?", 19, "#fff")
+    s += card(60, 290, 240, 80, "#1b2028", ACC) + t(180, 340, "А туалет?", 28, ACC)
+    s += t(180, 440, "2 из 50 комментариев", 17, "#9aa5b1", "normal")
+    return s + caption(["Под первым роликом", "спросили про туалет"])
 
 
 def b3():
-    s = room() + lamp()
-    s += f'<path d="M110 250 h100 l-12 130 h-76 z" fill="#5b6573" stroke="#8a95a3" stroke-width="3"/><rect x="104" y="236" width="112" height="16" rx="6" fill="#8a95a3"/>'
-    s += f'<rect x="250" y="190" width="26" height="190" rx="8" fill="#1d232b" stroke="#6b7480" stroke-width="3"/><rect x="254" y="{380-4-150}" width="18" height="150" rx="5" fill="{ACC}"/>' + t(263, 410, "полное", 12, "#9aa5b1", "normal")
-    s += t(180, 110, "10 дней", 52, ACC) + t(180, 148, "и ведро полное", 19, "#cfd6de", "normal")
-    s += bar(30, 470, 300, 0.03, ACC, "день 10", "осталось 355")
-    return s + caption(["Ведро с крышкой", "на десять дней"])
+    s = room(True) + door(180, 190, 90) + family(420, 0.62, (60, 120, 180, 232, 270))
+    s += t(180, 330, "несколько тонн", 36, AMB) + t(180, 366, "отходов за два года", 20, "#cfd6de", "normal")
+    return s + caption(["Люк открывать", "нельзя"])
 
 
 def b4():
-    s = room() + lamp()
-    s += f'<rect x="30" y="250" width="120" height="130" rx="12" fill="#1d232b" stroke="{WAT}" stroke-width="4"/><rect x="40" y="300" width="100" height="70" rx="6" fill="#c8b04a"/>' + t(90, 410, "жидкое:", 15, "#9aa5b1") + t(90, 430, "закрытый бак", 15, "#9aa5b1")
-    s += f'<rect x="210" y="270" width="120" height="110" rx="12" fill="#1d232b" stroke="{AMB}" stroke-width="4"/><rect x="220" y="320" width="100" height="50" rx="6" fill="#8b6f47"/>' + t(270, 410, "твёрдое:", 15, "#9aa5b1") + t(270, 430, "сухой туалет", 15, "#9aa5b1")
-    s += t(180, 120, "СИСТЕМА", 44, AMB) + f'<path d="M160 320 h40" stroke="#666" stroke-width="3"/>'
-    return s + caption(["Жидкое отдельно,", "твёрдое отдельно"])
+    s = f'<rect width="{W}" height="{H}" fill="#1c2638"/><rect y="150" width="{W}" height="490" fill="#3a2e24"/><rect y="150" width="{W}" height="8" fill="#4f6b2f"/>'
+    for y in (230, 330, 430):
+        s += f'<line x1="0" y1="{y}" x2="{W}" y2="{y}" stroke="#000" stroke-opacity=".18"/>'
+    s += f'<rect x="40" y="95" width="130" height="55" fill="#6a717b"/><path d="M34 95 l71 -34 l71 34z" fill="#4a5058"/>' + t(105, 128, "гараж", 15, "#fff")
+    s += f'<rect x="95" y="158" width="20" height="90" fill="#555e68"/><rect x="40" y="248" width="200" height="120" rx="8" fill="#242b34" stroke="#7a8594" stroke-width="3"/>' + t(140, 316, "бункер", 18, "#cfd6de")
+    s += f'<rect x="262" y="205" width="92" height="48" rx="12" fill="{AMB}"/>' + t(308, 235, "солярка", 13, "#222")
+    s += f'<rect x="262" y="338" width="92" height="48" rx="12" fill="#7a6a2a" stroke="{GAS}" stroke-width="3"/>' + t(308, 369, "стоки", 15, "#fff")
+    s += f'<line x1="240" y1="300" x2="270" y2="362" stroke="#aaa" stroke-width="5"/><line x1="240" y1="270" x2="270" y2="230" stroke="#aaa" stroke-width="3"/>'
+    s += f'<line x1="318" y1="338" x2="318" y2="120" stroke="#aaa" stroke-width="6"/><rect x="310" y="112" width="16" height="10" fill="#aaa"/>' + t(300, 100, "труба", 14, "#fff", "normal", "end")
+    return s + caption(["Ещё один бак", "под гаражом, для стоков"])
 
 
 def b5():
     s = room() + lamp()
-    s += f'<path d="M100 330 h160 l-18 100 h-124 z" fill="#5b6573" stroke="#8a95a3" stroke-width="3"/>'
-    s += f'<path d="M140 220 q40 -50 90 -10 l-20 70 h-60 z" fill="#d9b779"/>'
+    s += f'<path d="M100 330 h160 l-18 100 h-124 z" fill="#5b6573" stroke="#8a95a3" stroke-width="3"/><path d="M140 220 q40 -50 90 -10 l-20 70 h-60 z" fill="#d9b779"/>'
     for i in range(7):
         s += f'<circle cx="{170+i*8}" cy="{300+(i%3)*8}" r="3" fill="#d9b779"/>'
-    s += f'<g stroke="{GAS}" stroke-width="4" fill="none" stroke-linecap="round" stroke-opacity=".5"><path d="M170 190 q10 -20 0 -40 t0 -40"/><path d="M200 190 q10 -20 0 -40 t0 -40"/></g>'
-    s += t(180, 110, "ОПИЛКИ", 48, AMB)
-    return s + caption(["Они держат запах"])
+    s += f'<g stroke="{GAS}" stroke-width="4" fill="none" stroke-linecap="round" stroke-opacity=".5"><path d="M170 190 q10 -20 0 -40 t0 -40"/><path d="M200 190 q10 -20 0 -40 t0 -40"/></g>' + t(180, 90, "ОПИЛКИ", 48, AMB)
+    return s + caption(["Твёрдое отдельно,", "опилки держат запах"])
 
 
 def b6():
-    s = room() + lamp(180, 0, 110)
-    s += person(90, 500, "hero", 1.0, mood="worried") + person(270, 500, "friend", 1.0)
-    s += f'<g stroke="{ACC}" stroke-width="5" fill="none"><path d="M130 300 l30 -14 l-30 -14"/><path d="M230 300 l-30 -14 l30 -14"/></g>'
-    s += f'<path d="M150 320 l20 -22 l20 22 l20 -22" stroke="{ACC}" stroke-width="4" fill="none"/>'
-    s += t(180, 110, "ссора", 56, ACC) + t(180, 146, "из-за запаха", 19, "#cfd6de", "normal")
-    return s + caption(["Люди ссорятся", "из-за меньшего"])
+    s = f'<rect width="{W}" height="{H}" fill="#cdbb8a"/><rect y="340" width="{W}" height="300" fill="#7d9a52"/><rect x="30" y="250" width="130" height="90" fill="#8b8f96"/><path d="M24 250 l71 -36 l71 36z" fill="#5b6068"/>'
+    s += f'<line x1="250" y1="340" x2="250" y2="190" stroke="#555" stroke-width="9"/><rect x="240" y="180" width="20" height="12" fill="#555"/><g stroke="{GAS}" stroke-width="4" fill="none" stroke-opacity=".7"><path d="M250 170 q8 -14 0 -28 t0 -28"/></g>'
+    s += person(330, 440, "n1", 1.0) + t(300, 190, "?", 60, ACC)
+    return s + caption(["Труба выходит", "наружу"])
 
 
 def b7():
-    s = room() + lamp()
-    s += generator(150, 440, 1.5, smoke=True) + calendar(280, 140, "40", None, 100)
-    s += person(300, 470, "friend", 0.9)
-    s += f'<g stroke="{AMB}" stroke-width="4" fill="none" stroke-linecap="round"><path d="M70 330 l-16 -10"/><path d="M60 358 l-22 0"/><path d="M70 384 l-16 10"/></g>'
-    s += t(110, 160, "кхх…", 34, "#cfd6de")
-    return s + caption(["Генератор кашляет,", "друг: «Включим тут»"])
+    s = f'<rect width="{W}" height="{H}" fill="#cdbb8a"/><rect y="420" width="{W}" height="220" fill="#7d9a52"/>'
+    s += person(90, 480, "hero", 1.0, mood="worried") + person(270, 480, "n1", 1.0)
+    s += bubble(20, 120, 150, 60, "Это септик", "#fff", "#111", "l", 20) + bubble(190, 220, 150, 70, "Да, у нас|такой же", "#fff", "#111", "r", 18)
+    return s + caption(["Соседи верят:", "у них такой же"])
 
 
 def b8():
-    s = room() + lamp()
-    s += generator(180, 360, 1.7, smoke=True, run=True)
-    s += t(180, 130, "Включил бы", 40, "#fff") + t(180, 172, "его внутри?", 40, "#fff")
-    s += poll(470)
-    return s + caption(["Пиши: да или нет"])
+    s = room(True) + calendar(300, 50, "40", None, 90)
+    s += person(80, 350, "hero", 1.0, lie=True) + person(260, 350, "mom", 1.0, lie=True) + person(80, 430, "kid", 1.0, lie=True) + person(260, 430, "kid", 1.0, lie=True)
+    s += generator(180, 280, 1.0) + t(150, 135, "тишина", 48, ACC) + t(180, 490, "Что сделаешь первым?", 22, AMB)
+    return s + caption(["Утро.", "Генератор молчит"])
 
 
-# ---------- ролик C ----------
 def c1():
-    s = room() + lamp() + generator(130, 440, 1.4, smoke=True, run=True)
-    s += person(280, 470, "hero", 0.9, down=True)
-    s += f'<rect x="196" y="120" width="130" height="60" rx="12" fill="#000" fill-opacity=".6"/>' + t(261, 160, "40:00", 36, ACC)
-    s += f'<g stroke="{ACC}" stroke-width="4" fill="none" stroke-linecap="round"><path d="M262 330 l-12 -18"/><path d="M280 322 l0 -22"/><path d="M298 330 l12 -18"/></g>'
-    return s + caption(["Через сорок минут", "болит голова"])
+    s = room() + lamp() + generator(180, 360, 1.9)
+    s += f'<path d="M150 300 l16 -22 l-12 -14 l20 -22" stroke="{ACC}" stroke-width="5" fill="none"/>' + t(180, 100, "ЛОМАЕТСЯ", 46, ACC) + t(180, 138, "вопрос только когда", 19, "#cfd6de", "normal")
+    return s + caption(["Он сломается"])
 
 
 def c2():
-    s = room() + lamp() + gas(9, 315, 410, 2) + generator(110, 470, 1.3, smoke=False, run=True)
-    s += person(280, 480, "hero", 0.9, mood="pain")
-    s += f'<circle cx="180" cy="190" r="44" fill="#000" fill-opacity=".55"/><circle cx="180" cy="190" r="26" fill="none" stroke="#fff" stroke-width="5"/><line x1="160" y1="210" x2="200" y2="170" stroke="{ACC}" stroke-width="6"/>'
-    s += t(180, 120, "CO", 56, GAS) + t(180, 290, "без запаха и цвета", 18, "#cfd6de", "normal")
-    return s + caption(["Угарный газ", "не пахнет и не виден"])
+    s = room() + lamp() + card(30, 120, 300, 90) + t(180, 175, "50 моточасов", 34, WAT) + t(180, 198, "замена масла (у многих малых моделей)", 12, "#9aa5b1", "normal")
+    s += card(30, 230, 300, 80) + t(180, 262, "6 часов в день", 21, "#fff") + t(180, 292, "= раз в 8 дней", 21, AMB)
+    s += card(30, 330, 300, 80, "#1b2028", ACC) + t(180, 362, "≈ 90 замен", 30, ACC) + t(180, 394, "за два года", 18, "#cfd6de", "normal")
+    return s + caption(["Масло меняют", "каждые 50 часов"])
 
 
 def c3():
-    s = room(True) + gas(7, 205, 335, 3)
-    s += f'<rect x="20" y="360" width="150" height="14" rx="5" fill="{STEEL}"/><rect x="190" y="360" width="150" height="14" rx="5" fill="{STEEL}"/>'
-    s += person(100, 360, "hero", 1.0, lie=True) + person(270, 360, "friend", 1.0, lie=True)
-    s += t(60, 270, "Z", 40, "#9aa5b1") + t(95, 235, "z", 28, "#9aa5b1") + t(240, 270, "Z", 40, "#9aa5b1") + t(275, 235, "z", 28, "#9aa5b1")
-    s += t(180, 110, "во сне", 44, ACC) + t(180, 146, "организм не жалуется", 18, "#cfd6de", "normal")
-    return s + caption(["Это самый", "опасный момент"])
+    s = room(True) + calendar(180, 80, "40", None, 110) + generator(180, 400, 1.6)
+    s += t(180, 260, "тишина", 54, ACC) + t(180, 300, "света нет", 22, "#cfd6de", "normal")
+    return s + caption(["Утро. Света нет"])
 
 
 def c4():
-    s = room(True) + generator(180, 340, 1.8, smoke=True)
-    s += f'<circle cx="180" cy="270" r="140" fill="none" stroke="{ACC}" stroke-width="22"/><line x1="82" y1="172" x2="278" y2="368" stroke="{ACC}" stroke-width="22"/>'
-    s += t(180, 90, "НИКОГДА", 52, ACC) + t(180, 495, "даже на 10 минут", 22, "#fff")
-    return s + caption(["В закрытом", "помещении"])
+    s = room(True) + gas(8, 250, 420, 4)
+    s += f'<circle cx="180" cy="190" r="70" fill="none" stroke="#7a8594" stroke-width="8"/>'
+    for a in (0, 120, 240):
+        s += f'<ellipse cx="180" cy="160" rx="12" ry="30" fill="#7a8594" transform="rotate({a} 180 190)"/>'
+    s += f'<line x1="120" y1="130" x2="240" y2="250" stroke="{ACC}" stroke-width="12"/><line x1="240" y1="130" x2="120" y2="250" stroke="{ACC}" stroke-width="12"/>' + t(180, 90, "ВЕНТИЛЯЦИЯ", 34, "#fff")
+    return s + caption(["Вентиляция встала"])
 
 
 def c5():
-    s = f'<rect width="{W}" height="{H}" fill="#1c2638"/><rect y="330" width="{W}" height="310" fill="#262e1e"/><rect x="0" y="330" width="{W}" height="6" fill="#2a3524"/>'
-    s += generator(90, 420, 1.2, smoke=False, run=True)
-    for r in (60, 110, 170, 240):
-        s += f'<path d="M{90+r*0.35:.0f} {360-r*0.5:.0f} a{r} {r} 0 0 1 0 {r}" stroke="{AMB}" stroke-opacity="{0.9-r/320:.2f}" stroke-width="4" fill="none"/>'
-    s += person(300, 440, "shadow", 0.9) + f'<circle cx="300" cy="333" r="30" fill="none" stroke="{ACC}" stroke-width="4" stroke-dasharray="6 6"/>'
-    s += t(180, 110, "шум слышно далеко", 26, "#fff") + t(180, 146, "снаружи война", 20, ACC)
-    return s + caption(["Снаружи", "ставить нельзя"])
+    s = room() + lamp() + f'<rect x="150" y="250" width="130" height="130" rx="10" fill="#3b424c" stroke="#7a8594" stroke-width="4"/>' + t(215, 322, "фильтр", 18, "#cfd6de", "normal")
+    s += f'<line x1="280" y1="315" x2="320" y2="315" stroke="#aaa" stroke-width="8"/><circle cx="320" cy="315" r="30" fill="none" stroke="{AMB}" stroke-width="6" stroke-dasharray="12 8"/><circle cx="345" cy="315" r="9" fill="{AMB}"/>'
+    s += person(80, 500, "hero", 1.0, arm_up=True, mood="pain") + t(180, 110, "вручную", 56, AMB)
+    return s + caption(["Крутишь фильтр", "вручную"])
 
 
 def c6():
-    s = room(True)
-    s += f'<defs><radialGradient id="dk"><stop offset="0" stop-color="{AMB}" stop-opacity=".45"/><stop offset="1" stop-color="{AMB}" stop-opacity="0"/></radialGradient></defs><circle cx="180" cy="300" r="110" fill="url(#dk)"/>'
-    s += person(110, 480, "hero", 0.9, down=True) + person(250, 480, "friend", 0.9, down=True)
-    s += f'<rect x="130" y="130" width="100" height="56" rx="8" fill="#1d232b" stroke="{AMB}" stroke-width="4"/><rect x="230" y="148" width="10" height="20" fill="{AMB}"/><rect x="136" y="136" width="30" height="44" fill="{AMB}"/>'
-    s += t(180, 230, "2 часа света в день", 20, AMB)
-    return s + caption(["Панель, аккумуляторы", "и темнота"])
+    s = room() + lamp(180, 0, 120)
+    s += person(100, 500, "hero", 1.0, down=True) + person(260, 500, "mom", 1.0)
+    s += f'<path d="M140 270 q40 -50 80 0" stroke="{AMB}" stroke-width="6" fill="none"/><path d="M212 258 l12 14 l-18 4" fill="{AMB}"/><path d="M220 300 q-40 50 -80 0" stroke="{AMB}" stroke-width="6" fill="none"/><path d="M148 312 l-12 -14 l18 -4" fill="{AMB}"/>'
+    s += t(180, 110, "смена", 50, "#fff")
+    return s + caption(["Нужны руки,", "чтобы меняться"])
 
 
 def c7():
-    s = room(True) + calendar(180, 90, "230", None, 150)
-    s += f'<rect x="100" y="260" width="160" height="200" rx="30" fill="#1b1f25"/><circle cx="180" cy="230" r="34" fill="#232a33"/><path d="M180 196 a34 34 0 0 1 0 68 z" fill="#0a0c10"/><path d="M144 226 a36 36 0 0 1 72 0z" fill="#a8412f"/><rect x="176" y="220" width="50" height="8" rx="3" fill="#a8412f"/><rect x="100" y="270" width="160" height="40" fill="#56633a"/>'
-    s += t(180, 400, "?", 120, ACC)
-    return s + caption(["Друг признаётся", "в том, о чём молчал"])
+    s = room(True)
+    for x, n, lab, col in ((70, "5", "семья", "#9aa5b1"), (180, "6", "+ друг", WAT), (290, "9", "+ соседи", ACC)):
+        s += f'<circle cx="{x}" cy="260" r="46" fill="#1d232b" stroke="{col}" stroke-width="5"/>' + t(x, 278, n, 52, col) + t(x, 340, lab, 17, "#cfd6de", "normal")
+    s += t(180, 130, "РУК ДЛЯ ФИЛЬТРА", 30, "#fff")
+    return s + caption(["Считай руки"])
 
 
 def c8():
-    s = room(True)
-    s += t(180, 170, "Что он", 64, "#fff") + t(180, 245, "скрывал?", 64, ACC)
-    s += f'<rect x="40" y="320" width="280" height="90" rx="20" fill="#1d232b" stroke="{ACC}" stroke-width="3"/>' + t(180, 375, "версии в комментарии", 21, "#cfd6de", "normal")
-    return s + caption(["Пиши версии"])
+    s = room(True) + siren(0.3) + door(180, 190, 80)
+    s += person(300, 520, "n1", 0.7) + person(60, 520, "n2", 0.7)
+    s += t(180, 330, "Пустил бы", 52, "#fff") + t(180, 380, "соседей?", 52, ACC) + poll(420)
+    return s + caption(["Ради лишних рук"])
 
 
 VIDEOS = [
-    dict(slug="A", title="Пустил друга в бункер: воды на 182 дня", thumb="НЕ ОТКРЫВАЙ?",
-         hook="Тысяча девяносто пять литров. Это вся твоя вода на год. А друг уже стучит в дверь.", runtime="≈40 с",
+    dict(slug="A", title="Шестой в бункере: еды на 20 месяцев", thumb="ОТКРЫТЬ?",
+         hook="Почти одиннадцать тысяч порций. Это еда на пятерых на два года. А в люк стучит шестой.", runtime="≈40 с",
          scenes=[
-             (a1, "0-6 с", "Тысяча девяносто пять литров. Вся твоя вода на год. А друг уже стучит.", "Люк, тряска от ударов, цифра 1095 бьёт в центр на первом кадре.", "глухие удары по металлу, тишина между ними"),
-             (a2, "6-10 с", "Ты считал на одного: три литра в день, триста шестьдесят пять дней.", "Пять бочек, формула 3 × 365, один человек у стены.", "тихий гул вентиляции"),
-             (a3, "10-14 с", "На двоих этого хватит на сто восемьдесят два дня.", "Два человека, три бочки пустеют, шкала на половине года.", "звук льющейся воды, затем пустой стук"),
-             (a4, "14-17 с", "Можно не открывать. Но он слышит, что ты за дверью.", "Полоска света под дверью, две тени ног, жёлтый глазок.", "стук прекращается, слышно дыхание"),
-             (a5, "17-19 с", "Ты открываешь.", "Люк открыт, контровой свет, силуэт друга с рюкзаком. Кадр короткий, 2 секунды.", "скрип засова, один низкий удар"),
-             (a6, "19-25 с", "Выход один: по полтора литра в день каждому. Вдвое меньше, чем рассчитывал.", "Две кружки по 1,5 л, плашка «вдвое меньше», шкала на 365 дней зелёная.", "лёгкий звон кружки"),
-             (a7, "25-29 с", "Организм терпит, только голова болит и сил нет.", "Двое сидят, голова в руках, тусклая лампа.", "ровный низкий гул, свет мигает"),
-             (a8, "29-40 с", "Всё, что вы выпьете, придётся куда-то девать. Открыл бы дверь? Да или нет.", "Ведро со знаком вопроса, внизу кнопки ДА и НЕТ. Закреплённый комментарий с тем же вопросом.", "короткий звук «кап», обрыв"),
+             (a1, "0-6 с", "Почти одиннадцать тысяч порций. Это еда на пятерых на два года. А в люк стучит шестой.", "Люк в красном свете сирен, цифра ≈11 000 крупно, дрожь от ударов.", "сирена стихает, три глухих удара"),
+             (a2, "6-12 с", "Сирены стихли. Это друг, тот самый, что год назад написал тебе ночью.", "Экран телефона: «Через год начнётся война. Никому.» Внизу силуэт друга в камуфляже.", "звук уведомления из первого ролика"),
+             (a3, "12-22 с", "Ты считаешь быстро: одиннадцать тысяч порций на шестерых. Хватит на двадцать месяцев, а не на двадцать четыре.", "Семья из пяти под лампой, две шкалы: 24 и 20 месяцев.", "быстрое тиканье, как калькулятор"),
+             (a4, "22-26 с", "Вода из скважины, воздух идёт. Это можно пережить.", "Три галочки: скважина, воздух, генератор.", "три коротких «дзынь»"),
+             (a5, "26-29 с", "Ты открываешь.", "Рука на штурвале люка, щель света справа. Кадр короткий.", "скрип штурвала, тишина"),
+             (a6, "29-35 с", "Друг заходит один. Но за ним в свете сирен стоят люди. Это соседи.", "Друг на первом плане, три соседа без лиц в красном свете.", "низкий нарастающий тон"),
+             (a7, "35-39 с", "Те, кому ты целый год махал через забор.", "Возврат в день: солнце, забор, вы машете друг другу.", "птицы, затем резкий обрыв"),
+             (a8, "39-42 с", "Друга ты пустил. А их? Пиши: да или нет.", "Люк, слово «Соседей», кнопки ДА/НЕТ. Закреплённый комментарий с тем же вопросом.", "один удар"),
          ]),
-    dict(slug="B", title="Что если в бункере нет туалета? 365 дней", thumb="КУДА ДЕВАТЬ?",
-         hook="Двое людей за год производят сотни литров отходов. Бункер закрыт. Выйти нельзя.", runtime="≈41 с",
+    dict(slug="B", title="Куда в бункере девать 30 тонн воды", thumb="А ТУАЛЕТ?",
+         hook="Вы потратите тридцать тонн воды. Куда она денется?", runtime="≈42 с",
          scenes=[
-             (b1, "0-6 с", "Двое людей за год производят сотни литров отходов. Бункер закрыт.", "Люк, слово СОТНИ крупно, два бака по бокам.", "гул, один низкий удар"),
-             (b2, "6-10 с", "Ты думал про воду и про еду. Про туалет не думал.", "Три круга: вода ✓, еда ✓, туалет «?» красным.", "две галочки «дзинь», третий звук фальшивый"),
-             (b3, "10-19 с", "Обычное ведро с крышкой заполняется меньше чем за десять дней. Остаётся триста пятьдесят пять.", "Ведро, шкала заполнения, календарь «355».", "щелчок крышки, затем тиканье"),
-             (b4, "19-24 с", "Жидкое отдельно, в закрытый бак. Твёрдое отдельно, в сухой туалет.", "Два контейнера разного цвета, подписи.", "два разных глухих стука"),
-             (b5, "24-28 с", "Сверху засыпают опилки. Они держат запах.", "Совок опилок, дымки запаха гаснут.", "шорох сыпучего"),
-             (b6, "28-34 с", "Люди ссорятся из-за меньшего, а вас двое и дверь одна.", "Двое спинами друг к другу, красная ломаная между ними.", "гул нарастает"),
-             (b7, "34-39 с", "На сороковой день генератор начинает кашлять, и друг предлагает включить его внутри.", "Календарь «40», генератор с дымом, друг показывает на него.", "кашель двигателя, обрыв"),
-             (b8, "39-43 с", "Включил бы? Да или нет.", "Генератор крупно, внизу ДА/НЕТ, закреплённый комментарий.", "тишина, затем один удар"),
+             (b1, "0-5 с", "Вы потратите тридцать тонн воды. Куда она денется?", "Бочки с водой стопкой, «30 ТОНН» крупно.", "льющаяся вода, обрыв"),
+             (b2, "5-11 с", "Под первым роликом спросили про туалет, и вопрос правильный.", "Карточка комментария «А куда они будут ходить в туалет?», ниже «А туалет?».", "звук пуш-уведомления"),
+             (b3, "11-17 с", "Пятеро за два года оставят несколько тонн отходов, а люк открывать нельзя.", "Люк, пятеро внизу, надпись «несколько тонн».", "гул, удар"),
+             (b4, "17-26 с", "Решение как с соляркой: под гаражом закапываешь ещё один бак, только для стоков. К нему труба с затвором, чтобы запах не шёл обратно.", "Разрез: гараж, бункер, бак с соляркой и новый бак «стоки», труба вверх.", "звук лопаты, гулкий стук по металлу"),
+             (b5, "26-30 с", "Твёрдое отдельно, в сухой туалет с опилками. Опилки держат запах.", "Совок опилок в ведро, дымки запаха гаснут.", "шорох сыпучего"),
+             (b6, "30-35 с", "Бак нужно проветривать, иначе газ пойдёт в бункер. Значит, труба выходит наружу.", "Двор в селе: труба торчит у гаража, сосед смотрит, над ним «?».", "ветер, шаги"),
+             (b7, "35-38 с", "Соседям скажешь: это септик. У них такой же.", "Диалог пузырями: «Это септик» и «Да, у нас такой же».", "лёгкая музыка, тёплая"),
+             (b8, "38-44 с", "На сороковой день все спят. Утром ты слышишь тишину. Генератор не работает. Что сделаешь первым? Пиши.", "Бункер, спящая семья, молчащий генератор, надпись «Что сделаешь первым?».", "гул стихает, остаётся тишина"),
          ]),
-    dict(slug="C", title="Генератор в бункере: через 40 минут", thumb="ГОЛОВА БОЛИТ",
-         hook="Ты включил генератор в бункере. Через сорок минут у тебя болит голова.", runtime="≈43 с",
+    dict(slug="C", title="Генератор бункера встал на 40-й день", thumb="КРУТИ РУКАМИ",
+         hook="Генератор в твоём бункере сломается. Вопрос только когда.", runtime="≈44 с",
          scenes=[
-             (c1, "0-6 с", "Ты включил генератор в бункере. Через сорок минут у тебя болит голова.", "Генератор работает, таймер 40:00, человек держится за голову.", "ровный рокот генератора"),
-             (c2, "6-14 с", "Угарный газ не пахнет и не виден. А воздуху в бункере деваться некуда.", "Зелёные волны заполняют верх комнаты, перечёркнутый нос.", "рокот приглушается, звон в ушах"),
-             (c3, "14-22 с", "Друг говорит, что устал. Вы ложитесь, и это самый опасный момент.", "Двое лежат, Z-значки, газ над ними.", "дыхание замедляется"),
-             (c4, "22-28 с", "Правило одно: в закрытом помещении генератор не включают никогда, даже на десять минут.", "Перечёркнутый круг поверх генератора, красный.", "резкий удар, тишина"),
-             (c5, "28-32 с", "Снаружи ставить нельзя: шум слышно далеко, а снаружи война.", "Генератор на поверхности, волны шума до силуэта вдалеке.", "рокот вдали, чьи-то шаги"),
-             (c6, "32-37 с", "Остаются панель и аккумуляторы. Свет два часа в день, остальное темнота.", "Тёмный бункер, один аккумулятор светится, двое сидят.", "щелчок выключателя"),
-             (c7, "37-41 с", "На двести тридцатый день друг признаётся в том, о чём молчал с первого дня.", "Календарь «230», лицо друга в тени, крупное «?».", "низкий нарастающий тон"),
-             (c8, "41-44 с", "Как думаешь, что он скрывал? Пиши версии.", "Текст «Что он скрывал?», подпись «версии в комментарии».", "обрыв на полуслове"),
+             (c1, "0-5 с", "Генератор в твоём бункере сломается. Вопрос только когда.", "Генератор крупно, трещина, слово ЛОМАЕТСЯ.", "рокот, кашель мотора"),
+             (c2, "5-14 с", "У многих малых генераторов масло меняют каждые пятьдесят моточасов. При шести часах в день это раз в восемь дней, за два года почти девяносто замен.", "Три карточки: 50 часов, раз в 8 дней, ≈90 замен. Подпись «у многих малых моделей».", "быстрое тиканье счётчика"),
+             (c3, "14-19 с", "Сорокой день, утро. Тишина. Света нет.", "Тёмный бункер, календарь 40, молчащий генератор.", "тишина, затем щелчок реле"),
+             (c4, "19-27 с", "Значит, встала и вентиляция. А в закрытом бункере, как ты помнишь, на второй день уже нечем дышать.", "Остановленный вентилятор, красный крест, зелёные волны газа.", "затихающий гул вентилятора"),
+             (c5, "27-33 с", "Ты берёшь рукоятку и крутишь фильтр вручную. Это тяжёлая работа.", "Герой крутит ручку фильтра, лицо от напряжения.", "скрип рукоятки, дыхание"),
+             (c6, "33-37 с", "Нужно меняться, и нужны люди.", "Герой выдохся, мама ждёт смены, стрелки по кругу.", "ритмичное скрипение"),
+             (c7, "37-41 с", "Считай: рук для фильтра пять. Или шесть. Или девять.", "Три круга: 5, 6, 9 и подписи «семья», «+ друг», «+ соседи».", "три нарастающих удара"),
+             (c8, "41-45 с", "Пустил бы соседей ради лишних рук? Да или нет.", "Люк, силуэты соседей, кнопки ДА/НЕТ.", "один удар, обрыв"),
          ]),
 ]
 
