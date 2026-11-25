@@ -264,7 +264,7 @@ def b3():
     s += f'<path d="M110 250 h100 l-12 130 h-76 z" fill="#5b6573" stroke="#8a95a3" stroke-width="3"/><rect x="104" y="236" width="112" height="16" rx="6" fill="#8a95a3"/>'
     s += f'<rect x="250" y="190" width="26" height="190" rx="8" fill="#1d232b" stroke="#6b7480" stroke-width="3"/><rect x="254" y="{380-4-150}" width="18" height="150" rx="5" fill="{ACC}"/>' + t(263, 410, "полное", 12, "#9aa5b1", "normal")
     s += t(180, 110, "10 дней", 52, ACC) + t(180, 148, "и ведро полное", 19, "#cfd6de", "normal")
-    s += bar(30, 470, 300, 0.03, ACC, "день 10", "осталось 355") + calendar(180, 520, "355", None, 110)
+    s += bar(30, 470, 300, 0.03, ACC, "день 10", "осталось 355")
     return s + caption(["Ведро с крышкой", "на десять дней"])
 
 
@@ -323,7 +323,7 @@ def c1():
 
 
 def c2():
-    s = room() + lamp() + gas(10, 190, 400, 2) + generator(110, 470, 1.3, smoke=False, run=True)
+    s = room() + lamp() + gas(9, 315, 410, 2) + generator(110, 470, 1.3, smoke=False, run=True)
     s += person(280, 480, "hero", 0.9, mood="pain")
     s += f'<circle cx="180" cy="190" r="44" fill="#000" fill-opacity=".55"/><circle cx="180" cy="190" r="26" fill="none" stroke="#fff" stroke-width="5"/><line x1="160" y1="210" x2="200" y2="170" stroke="{ACC}" stroke-width="6"/>'
     s += t(180, 120, "CO", 56, GAS) + t(180, 290, "без запаха и цвета", 18, "#cfd6de", "normal")
@@ -331,7 +331,7 @@ def c2():
 
 
 def c3():
-    s = room(True) + gas(8, 175, 340, 3)
+    s = room(True) + gas(7, 205, 335, 3)
     s += f'<rect x="20" y="360" width="150" height="14" rx="5" fill="{STEEL}"/><rect x="190" y="360" width="150" height="14" rx="5" fill="{STEEL}"/>'
     s += person(100, 360, "hero", 1.0, lie=True) + person(270, 360, "friend", 1.0, lie=True)
     s += t(60, 270, "Z", 40, "#9aa5b1") + t(95, 235, "z", 28, "#9aa5b1") + t(240, 270, "Z", 40, "#9aa5b1") + t(275, 235, "z", 28, "#9aa5b1")
@@ -347,7 +347,7 @@ def c4():
 
 
 def c5():
-    s = f'<rect width="{W}" height="{H}" fill="#0c1018"/><rect y="330" width="{W}" height="310" fill="#171b14"/><rect x="0" y="330" width="{W}" height="6" fill="#2a3524"/>'
+    s = f'<rect width="{W}" height="{H}" fill="#1c2638"/><rect y="330" width="{W}" height="310" fill="#262e1e"/><rect x="0" y="330" width="{W}" height="6" fill="#2a3524"/>'
     s += generator(90, 420, 1.2, smoke=False, run=True)
     for r in (60, 110, 170, 240):
         s += f'<path d="M{90+r*0.35:.0f} {360-r*0.5:.0f} a{r} {r} 0 0 1 0 {r}" stroke="{AMB}" stroke-opacity="{0.9-r/320:.2f}" stroke-width="4" fill="none"/>'
@@ -367,7 +367,7 @@ def c6():
 
 def c7():
     s = room(True) + calendar(180, 90, "230", None, 150)
-    s += f'<rect x="100" y="260" width="160" height="200" rx="30" fill="#1b1f25"/><circle cx="180" cy="230" r="34" fill="#232a33"/><path d="M180 196 a34 34 0 0 1 0 68 z" fill="#0a0c10"/>'
+    s += f'<rect x="100" y="260" width="160" height="200" rx="30" fill="#1b1f25"/><circle cx="180" cy="230" r="34" fill="#232a33"/><path d="M180 196 a34 34 0 0 1 0 68 z" fill="#0a0c10"/><path d="M144 226 a36 36 0 0 1 72 0z" fill="#a8412f"/><rect x="176" y="220" width="50" height="8" rx="3" fill="#a8412f"/><rect x="100" y="270" width="160" height="40" fill="#56633a"/>'
     s += t(180, 400, "?", 120, ACC)
     return s + caption(["Друг признаётся", "в том, о чём молчал"])
 
