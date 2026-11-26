@@ -79,11 +79,18 @@ export function buildBunker(scene, renderer) {
   plane(W / 2 - (hx + hr), 2 * hr, ceilM, [(W / 2 + hx + hr) / 2, H, hz], [Math.PI / 2, 0, 0]);
   plane(W, H, wallM, [0, H / 2, Z0 - D], [0, 0, 0]);
   plane(D, H, wallM, [-W / 2, H / 2, Z0 - D / 2], [0, Math.PI / 2, 0]);
-  plane(D, H, wallM, [W / 2, H / 2, Z0 - D / 2], [0, -Math.PI / 2, 0]);
+  // правая стена с дверным проёмом в техкомнату (z от -2.4 до -1.3)
+  const DZ0 = -2.4, DZ1 = -1.3, DH = 2.1;
+  plane(Z0 - DZ1, H, wallM, [W / 2, H / 2, (Z0 + DZ1) / 2], [0, -Math.PI / 2, 0]);
+  plane(DZ0 - (Z0 - D), H, wallM, [W / 2, H / 2, (DZ0 + Z0 - D) / 2], [0, -Math.PI / 2, 0]);
+  plane(DZ1 - DZ0, H - DH, wallM, [W / 2, DH + (H - DH) / 2, (DZ0 + DZ1) / 2], [0, -Math.PI / 2, 0]);
+  const jamb = new THREE.MeshStandardMaterial({ map: metalTex(23, [70, 74, 78]), metalness: 0.6, roughness: 0.5 });
+  for (const z of [DZ0, DZ1]) box(0.12, DH, 0.08, jamb, W / 2, DH / 2, z);
+  box(0.12, 0.08, DZ1 - DZ0 + 0.08, jamb, W / 2, DH, (DZ0 + DZ1) / 2);
   // шахта люка вверх
   const shaftM = new THREE.MeshStandardMaterial({ map: concrete(41, [70, 66, 62]), roughness: 1, side: THREE.BackSide });
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(hr, hr, 0.9, 32, 1, true), shaftM); shaft.position.set(hx, H + 0.45, hz); scene.add(shaft);
-  const skyM = new THREE.MeshBasicMaterial({ color: '#120808', transparent: true, opacity: 0 }); const sky = new THREE.Mesh(new THREE.CircleGeometry(hr, 32), skyM); sky.rotation.x = Math.PI / 2; sky.position.set(hx, H + 0.9, hz); scene.add(sky);
+  const SH = 0.35; const shaft = new THREE.Mesh(new THREE.CylinderGeometry(hr, hr, SH, 32, 1, true), shaftM); shaft.position.set(hx, H + SH / 2, hz); scene.add(shaft);
+  const skyM = new THREE.MeshBasicMaterial({ color: '#120808', transparent: true, opacity: 0 }); const sky = new THREE.Mesh(new THREE.CircleGeometry(hr, 32), skyM); sky.rotation.x = Math.PI / 2; sky.position.set(hx, H + 5, hz); scene.add(sky);
   const metal = new THREE.MeshStandardMaterial({ map: metalTex(5, [96, 100, 106]), metalness: 0.75, roughness: 0.42 });
   const rim = new THREE.Mesh(new THREE.TorusGeometry(hr, 0.05, 12, 40), metal); rim.rotation.x = Math.PI / 2; rim.position.set(hx, H - 0.02, hz); rim.castShadow = true; scene.add(rim);
   // крышка: шарнир у дальнего края, открывается вверх
@@ -116,8 +123,8 @@ export function buildBunker(scene, renderer) {
     }
   }
   // огнетушитель и щиток справа
-  const ext = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 20), new THREE.MeshStandardMaterial({ color: '#a3241c', metalness: 0.3, roughness: 0.35 })); ext.position.set(W / 2 - 0.12, 0.9, -1.0); ext.castShadow = true; scene.add(ext);
-  box(0.06, 0.55, 0.42, new THREE.MeshStandardMaterial({ map: metalTex(13, [90, 96, 100]), metalness: 0.5, roughness: 0.6 }), W / 2 - 0.04, 1.7, -2.2);
+  const ext = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 20), new THREE.MeshStandardMaterial({ color: '#a3241c', metalness: 0.3, roughness: 0.35 })); ext.position.set(W / 2 - 0.12, 0.9, 0.2); ext.castShadow = true; scene.add(ext);
+  box(0.06, 0.55, 0.42, new THREE.MeshStandardMaterial({ map: metalTex(13, [90, 96, 100]), metalness: 0.5, roughness: 0.6 }), W / 2 - 0.04, 1.7, -3.4);
   // лавка вдоль задней стены слева
   const benchM = new THREE.MeshStandardMaterial({ map: woodTex(3), roughness: 0.75 });
   box(2.6, 0.06, 0.42, benchM, -1.4, 0.46, Z0 - D + 0.35); for (const x of [-2.55, -0.25]) box(0.08, 0.44, 0.36, benchM, x, 0.22, Z0 - D + 0.35);
@@ -132,34 +139,38 @@ export function buildBunker(scene, renderer) {
   const red = new THREE.SpotLight('#ff2a1a', 0, 7, 0.75, 0.6, 1.2); red.position.set(hx, H + 0.8, hz); red.target.position.set(hx, 0, hz + 0.6); red.castShadow = true; red.shadow.mapSize.set(512, 512); scene.add(red); scene.add(red.target);
   // холодная заливка от люка (как в референсе: тёплый свет лампы против холодных теней)
   const cool = new THREE.PointLight('#6a7fb0', 2.2, 8, 1.5); cool.position.set(hx - 0.5, H - 0.3, hz + 0.8); scene.add(cool);
-  // бочка воды с трубой из скважины, ФВУ с ручкой, дверь в генераторную (правая стена)
   const blue = new THREE.MeshStandardMaterial({ color: '#2f6fb0', roughness: 0.45, metalness: 0.1 });
-  const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 1.0, 28), blue); tank.position.set(2.5, 0.5, 0.2); tank.castShadow = true; tank.receiveShadow = true; scene.add(tank);
-  for (const y of [0.25, 0.75]) { const rib = new THREE.Mesh(new THREE.TorusGeometry(0.385, 0.02, 6, 28), blue); rib.rotation.x = Math.PI / 2; rib.position.set(2.5, y, 0.2); scene.add(rib); }
   const pipeM = new THREE.MeshStandardMaterial({ color: '#7a8088', metalness: 0.8, roughness: 0.35 });
-  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.4, 12), pipeM); pipe.position.set(2.95, 0.7, 0.2); scene.add(pipe);
-  const fvu = box(0.5, 0.75, 0.55, new THREE.MeshStandardMaterial({ map: metalTex(17, [80, 92, 84]), metalness: 0.5, roughness: 0.55 }), 2.85, 1.15, -0.9);
-  const crank = new THREE.Group(); crank.position.set(2.56, 1.15, -0.9); scene.add(crank);
-  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.22, 0.03), pipeM); arm.position.y = 0.1; crank.add(arm);
-  const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.1, 10), new THREE.MeshStandardMaterial({ color: '#c09030' })); knob.rotation.z = Math.PI / 2; knob.position.set(-0.05, 0.2, 0); crank.add(knob);
-  const duct2 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2, 16), ductM); duct2.position.set(2.95, 2.1, -0.9); scene.add(duct2);
-  box(0.06, 2.0, 0.9, new THREE.MeshStandardMaterial({ map: metalTex(21, [70, 74, 78]), metalness: 0.6, roughness: 0.5 }), W / 2 - 0.03, 1.0, -3.3);
-  const gen = box(0.7, 0.5, 0.45, new THREE.MeshStandardMaterial({ color: '#c8a62c', roughness: 0.5, metalness: 0.2 }), 2.6, 0.27, -2.4);
-  box(0.3, 0.16, 0.3, new THREE.MeshStandardMaterial({ color: '#3a3d42', metalness: 0.6, roughness: 0.4 }), 2.5, 0.6, -2.4);
   // ящики штабелем у задней стены справа
   const wM = new THREE.MeshStandardMaterial({ map: woodTex(8), roughness: 0.8 });
   for (const [x, y] of [[1.9, 0.18], [2.35, 0.18], [2.1, 0.54]]) box(0.42, 0.34, 0.4, wM, x, y, Z0 - D + 0.35);
-  // гараж над люком: виден только сквозь проём (красная лампа, снег в открытых воротах)
+  // над люком: темнота, слабый красный отсвет сирены, фонарик светит вниз (людей рисует 2D-слой)
   const up = new THREE.Group(); scene.add(up);
-  const gFloorM = new THREE.MeshStandardMaterial({ map: concrete(51, [60, 56, 52]), roughness: 0.95 });
-  const gWallM = new THREE.MeshStandardMaterial({ map: concrete(53, [95, 70, 58], 2), roughness: 0.95, side: THREE.BackSide });
-  const gBox = new THREE.Mesh(new THREE.BoxGeometry(5, 2.6, 5), gWallM); gBox.position.set(hx, H + 0.9 + 1.3, hz); up.add(gBox);
-  const gFloor = new THREE.Mesh(new THREE.RingGeometry(hr + 0.01, 3, 40), gFloorM); gFloor.rotation.x = -Math.PI / 2; gFloor.position.set(hx, H + 0.9, hz); up.add(gFloor);
-  for (let k = -2; k <= 2; k++) { const beam = new THREE.Mesh(new THREE.BoxGeometry(5, 0.14, 0.14), new THREE.MeshStandardMaterial({ map: woodTex(30 + k), roughness: 0.8 })); beam.position.set(hx, H + 3.35, hz + k); up.add(beam); }
-  const doorHole = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.0), new THREE.MeshBasicMaterial({ color: '#1a2236' })); doorHole.position.set(hx, H + 1.9, hz + 2.48); doorHole.rotation.y = Math.PI; up.add(doorHole);
-  const upRed = new THREE.PointLight('#ff3020', 0, 7, 1.4); upRed.position.set(hx, H + 2.9, hz); up.add(upRed);
-  const upBulb = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), new THREE.MeshStandardMaterial({ color: '#ff5040', emissive: '#ff2010', emissiveIntensity: 0 })); upBulb.position.copy(upRed.position); up.add(upBulb);
-  return { lidPivot, lamp, red, bulb, sky, skyM, hatch: HATCH, H, crank, upRed, upBulb, cool, up };
+  const voidM = new THREE.MeshStandardMaterial({ color: '#0d0b0b', roughness: 1, side: THREE.BackSide });
+  const voidBox = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 6), voidM); voidBox.position.set(hx, H + SH + 1.5, hz); up.add(voidBox);
+  const gFloor = new THREE.Mesh(new THREE.RingGeometry(hr + 0.01, 3, 40), new THREE.MeshStandardMaterial({ map: concrete(51, [60, 56, 52]), roughness: 0.95 })); gFloor.rotation.x = -Math.PI / 2; gFloor.position.set(hx, H + SH, hz); up.add(gFloor);
+  const upRed = new THREE.PointLight('#ff3020', 0, 6, 1.6); upRed.position.set(hx - 1.2, H + SH + 2.2, hz + 1.0); up.add(upRed);
+  const upBulb = new THREE.Mesh(new THREE.SphereGeometry(0.001), new THREE.MeshBasicMaterial()); up.add(upBulb); upBulb.material.emissiveIntensity = 0;
+  const torch = new THREE.SpotLight('#fff1d6', 0, 9, 0.32, 0.5, 1.0); torch.position.set(hx + 0.12, H + SH + 1.05, hz + 0.25); torch.target.position.set(hx, 0, hz + 0.3); torch.castShadow = true; torch.shadow.mapSize.set(512, 512); up.add(torch); up.add(torch.target);
+  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.035, 16), new THREE.MeshBasicMaterial({ color: '#fffbe8' })); lens.rotation.x = Math.PI / 2; lens.position.copy(torch.position).add(new THREE.Vector3(0, -0.01, 0)); up.add(lens);
+  const coneM = new THREE.MeshBasicMaterial({ color: '#fff3d0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.75, 3.6, 24, 1, true), coneM); cone.position.set(hx + 0.06, H + SH + 1.05 - 1.8, hz + 0.27); scene.add(cone);
+  // техкомната за проёмом в правой стене: бочка воды со скважиной, ФВУ с ручкой, генератор
+  const TX = W / 2, tw = 3.0;
+  const tFloor = new THREE.Mesh(new THREE.PlaneGeometry(tw, D), floorM); tFloor.rotation.x = -Math.PI / 2; tFloor.position.set(TX + tw / 2, 0, Z0 - D / 2); tFloor.receiveShadow = true; scene.add(tFloor);
+  const tCeil = new THREE.Mesh(new THREE.PlaneGeometry(tw, D), ceilM); tCeil.rotation.x = Math.PI / 2; tCeil.position.set(TX + tw / 2, H, Z0 - D / 2); scene.add(tCeil);
+  plane(D, H, wallM, [TX + tw, H / 2, Z0 - D / 2], [0, -Math.PI / 2, 0]);
+  plane(tw, H, wallM, [TX + tw / 2, H / 2, Z0 - D], [0, 0, 0]);
+  const tank2 = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.1, 28), blue); tank2.position.set(TX + 2.3, 0.55, -0.6); tank2.castShadow = true; scene.add(tank2);
+  const pipe2 = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.6, 12), pipeM); pipe2.position.set(TX + 2.75, 0.8, -0.6); scene.add(pipe2);
+  box(0.55, 0.8, 0.6, new THREE.MeshStandardMaterial({ map: metalTex(17, [80, 92, 84]), metalness: 0.5, roughness: 0.55 }), TX + 2.6, 1.2, -1.9);
+  const crank2 = new THREE.Group(); crank2.position.set(TX + 2.28, 1.2, -1.9); scene.add(crank2);
+  const arm2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.22, 0.03), pipeM); arm2.position.y = 0.1; crank2.add(arm2);
+  box(0.8, 0.55, 0.5, new THREE.MeshStandardMaterial({ color: '#c8a62c', roughness: 0.5, metalness: 0.2 }), TX + 2.3, 0.3, -3.3);
+  const exh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.2, 10), pipeM); exh.position.set(TX + 2.75, 1.5, -3.3); scene.add(exh);
+  const tLamp = new THREE.PointLight('#ffc27a', 5, 6, 1.6); tLamp.position.set(TX + 1.4, H - 0.4, -1.8); tLamp.castShadow = true; tLamp.shadow.mapSize.set(512, 512); scene.add(tLamp);
+  const tb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), new THREE.MeshStandardMaterial({ color: '#ffd9a0', emissive: '#ffb050', emissiveIntensity: 5 })); tb.position.copy(tLamp.position); scene.add(tb);
+  return { lidPivot, lamp, red, bulb, sky, skyM, hatch: HATCH, H, SH, crank: crank2, upRed, upBulb, cool, up, torch, coneM };
 }
 
 
@@ -188,5 +199,57 @@ export function buildVillage(scene, renderer) {
   scene.add(new THREE.HemisphereLight('#a8b0e0', '#806070', 0.9));
   const sun = new THREE.DirectionalLight('#ffb070', 3.2); sun.position.set(-10, 6, -12); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
   Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12 }); scene.add(sun);
+  return {};
+}
+
+
+// ---------- город: три места покупок для воспоминания «целый год понемногу в разных магазинах» ----------
+export const SHOPS = { market: 0, super: 40, pharm: 80 };
+export function buildTown(scene, renderer) {
+  const pm = new THREE.PMREMGenerator(renderer);
+  scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.3;
+  scene.background = new THREE.Color('#2a2c44'); scene.fog = new THREE.Fog('#3a3448', 10, 40);
+  const box = (w, h, d, m, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true; scene.add(o); return o; };
+  const wood = new THREE.MeshStandardMaterial({ map: woodTex(80), roughness: 0.8 });
+  const snowT = concrete(81, [228, 232, 240]); snowT.repeat.set(6, 6);
+  // рынок: снег, прилавок под навесом, ящики с овощами, мешки
+  const mx = SHOPS.market;
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ map: snowT, roughness: 0.9 })); ground.rotation.x = -Math.PI / 2; ground.position.x = mx; ground.receiveShadow = true; scene.add(ground);
+  box(2.4, 0.9, 0.8, wood, mx, 0.45, -1.5);
+  const awn = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.06, 1.4), new THREE.MeshStandardMaterial({ color: '#a83a2c', roughness: 0.8 })); awn.position.set(mx, 2.3, -1.6); awn.rotation.x = 0.2; scene.add(awn);
+  for (const x of [-1.3, 1.3]) box(0.08, 2.3, 0.08, wood, mx + x, 1.15, -1.0);
+  const veg = ['#d0682a', '#7a9a3a', '#a8322a', '#d8b04a'];
+  for (let k = 0; k < 4; k++) { box(0.5, 0.18, 0.35, wood, mx - 0.85 + k * 0.57, 0.99, -1.45); for (let j = 0; j < 6; j++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), new THREE.MeshStandardMaterial({ color: veg[k], roughness: 0.6 })); b.position.set(mx - 1.0 + k * 0.57 + (j % 3) * 0.1, 1.12, -1.5 + Math.floor(j / 3) * 0.1); scene.add(b); } }
+  for (const x of [-1.5, -1.0]) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.6, 12), new THREE.MeshStandardMaterial({ color: '#b8a27a', roughness: 0.95 })); s.position.set(mx + x - 0.4, 0.3, -0.6); scene.add(s); }
+  const brick = new THREE.MeshStandardMaterial({ map: concrete(83, [120, 70, 55], 3), roughness: 0.9 });
+  box(12, 4, 0.5, brick, mx, 2, -4);
+  const mLamp = new THREE.PointLight('#ffb070', 8, 8, 1.6); mLamp.position.set(mx, 2.1, -1.2); mLamp.castShadow = true; mLamp.shadow.mapSize.set(512, 512); scene.add(mLamp);
+  // супермаркет: пол-плитка, ряды полок с товаром, лампы дневного света, касса
+  const sx = SHOPS.super;
+  const tile = document.createElement('canvas'); tile.width = tile.height = 128; { const g = tile.getContext('2d'); g.fillStyle = '#cfcac0'; g.fillRect(0, 0, 128, 128); g.strokeStyle = '#a8a298'; g.lineWidth = 3; g.strokeRect(0, 0, 64, 64); g.strokeRect(64, 64, 64, 64); g.strokeRect(64, 0, 64, 64); g.strokeRect(0, 64, 64, 64); }
+  const tileT = new THREE.CanvasTexture(tile); tileT.wrapS = tileT.wrapT = THREE.RepeatWrapping; tileT.repeat.set(10, 10); tileT.colorSpace = THREE.SRGBColorSpace;
+  const sFloor = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), new THREE.MeshStandardMaterial({ map: tileT, roughness: 0.4 })); sFloor.rotation.x = -Math.PI / 2; sFloor.position.set(sx, 0, -2); sFloor.receiveShadow = true; scene.add(sFloor);
+  const sWall = new THREE.MeshStandardMaterial({ color: '#d8d4ca', roughness: 0.9, side: THREE.BackSide }); const room = new THREE.Mesh(new THREE.BoxGeometry(14, 3.4, 14), sWall); room.position.set(sx, 1.7, -2); scene.add(room);
+  const shelfM = new THREE.MeshStandardMaterial({ color: '#e6e6e2', metalness: 0.3, roughness: 0.5 });
+  const goods = ['#c03a2a', '#2a6ac0', '#e0b030', '#3a9a4a', '#e07a2a', '#7a3ac0'];
+  for (const z of [-1.6, -4.0]) for (const side of [-1, 1]) {
+    box(6, 1.9, 0.5, shelfM, sx, 0.95, z + side * 0.9);
+    for (let y = 0.35; y < 1.9; y += 0.42) for (let k = 0; k < 22; k++) { const g = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.26, 0.2), new THREE.MeshStandardMaterial({ color: goods[(k + Math.round(y * 10)) % 6], roughness: 0.6 })); g.position.set(sx - 2.8 + k * 0.27, y + 0.14, z + side * 0.66); scene.add(g); }
+  }
+  box(1.6, 0.9, 0.6, new THREE.MeshStandardMaterial({ color: '#3a3d44', metalness: 0.4, roughness: 0.5 }), sx + 2.4, 0.45, 0.6);
+  for (const z of [0, -2.8]) { const tube = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.05, 0.12), new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#e8f2ff', emissiveIntensity: 3 })); tube.position.set(sx, 3.3, z); scene.add(tube);
+    const rl = new THREE.RectAreaLight ? null : null; const pl = new THREE.PointLight('#e8f0ff', 6, 9, 1.5); pl.position.set(sx, 3.1, z); scene.add(pl); }
+  // аптека: прилавок, полки с коробками, зелёный крест
+  const px = SHOPS.pharm;
+  const pFloor = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.MeshStandardMaterial({ map: tileT, roughness: 0.4 })); pFloor.rotation.x = -Math.PI / 2; pFloor.position.set(px, 0, -1.5); pFloor.receiveShadow = true; scene.add(pFloor);
+  const pRoom = new THREE.Mesh(new THREE.BoxGeometry(10, 3.2, 10), new THREE.MeshStandardMaterial({ color: '#e2ece6', roughness: 0.9, side: THREE.BackSide })); pRoom.position.set(px, 1.6, -1.5); scene.add(pRoom);
+  box(3.2, 1.0, 0.6, new THREE.MeshStandardMaterial({ color: '#f2f0ea', roughness: 0.5 }), px, 0.5, -2.2);
+  box(4, 2.2, 0.35, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.6 }), px, 1.1, -3.6);
+  const med = ['#e8e8f0', '#3a7ac0', '#e05a4a', '#4ab07a', '#f0c040'];
+  for (let y = 0.5; y < 2.1; y += 0.4) for (let k = 0; k < 16; k++) { const g = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.2, 0.12), new THREE.MeshStandardMaterial({ color: med[(k + Math.round(y * 7)) % 5], roughness: 0.6 })); g.position.set(px - 1.8 + k * 0.24, y, -3.38); scene.add(g); }
+  const crossM = new THREE.MeshStandardMaterial({ color: '#2ab060', emissive: '#18a050', emissiveIntensity: 2.5 });
+  box(0.5, 0.15, 0.05, crossM, px, 2.75, -3.4); box(0.15, 0.5, 0.05, crossM, px, 2.75, -3.4);
+  const phl = new THREE.PointLight('#f0fff6', 6, 8, 1.5); phl.position.set(px, 2.8, -0.8); phl.castShadow = true; phl.shadow.mapSize.set(512, 512); scene.add(phl);
+  scene.add(new THREE.HemisphereLight('#c8d0e8', '#605048', 0.6));
   return {};
 }

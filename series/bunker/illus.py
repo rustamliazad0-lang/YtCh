@@ -1,0 +1,439 @@
+#!/usr/bin/env python3
+"""Нарисованные фоны в стиле референса (векторная иллюстрация с настоящей перспективой).
+
+Каждый предмет задаётся в мировых координатах (метры) и проецируется камерой в кадр 1080x1920,
+поэтому перспектива верная и камеру потом можно двигать. Рисовка: плоские цвета с мягкими градиентами,
+тонкий тёмный контур, тёплый свет ламп со свечением, холодные тени, зерно, пыль/снег, виньетка.
+"""
+import math, random
+
+W, H = 1080, 1920
+INK = "#2a221c"
+
+
+class Cam:
+    def __init__(self, x=0.0, y=1.4, z=0.0, yaw=0.0, pitch=0.0, f=900, vx=540, vy=960):
+        self.x, self.y, self.z, self.yaw, self.pitch, self.f, self.vx, self.vy = x, y, z, yaw, pitch, f, vx, vy
+
+    def p(self, X, Y, Z):
+        """Камера смотрит в сторону -Z (вглубь сцены). yaw > 0: поворот вправо, pitch > 0: взгляд вверх."""
+        dx, dy, fw = X - self.x, Y - self.y, self.z - Z
+        cy, sy = math.cos(self.yaw), math.sin(self.yaw)
+        dx, fw = dx * cy - fw * sy, dx * sy + fw * cy
+        cp, sp = math.cos(self.pitch), math.sin(self.pitch)
+        dy, fw = dy * cp - fw * sp, dy * sp + fw * cp
+        fw = max(fw, 0.05)
+        return (self.vx + self.f * dx / fw, self.vy - self.f * dy / fw, fw)
+
+    def cs(self, X, Y, Z):
+        dx, dy, fw = X - self.x, Y - self.y, self.z - Z
+        cy, sy = math.cos(self.yaw), math.sin(self.yaw)
+        dx, fw = dx * cy - fw * sy, dx * sy + fw * cy
+        cp, sp = math.cos(self.pitch), math.sin(self.pitch)
+        return (dx, dy * cp - fw * sp, dy * sp + fw * cp)
+
+    def proj(self, c):
+        return (self.vx + self.f * c[0] / c[2], self.vy - self.f * c[1] / c[2], c[2])
+
+
+def clip_near(C, near=0.12):
+    """Обрезка многоугольника по ближней плоскости камеры (Сазерленд — Ходжман)."""
+    out = []
+    for i in range(len(C)):
+        a, b = C[i], C[(i + 1) % len(C)]
+        ina, inb = a[2] >= near, b[2] >= near
+        if ina:
+            out.append(a)
+        if ina != inb:
+            t = (near - a[2]) / (b[2] - a[2]); out.append(tuple(a[k] + (b[k] - a[k]) * t for k in range(3)))
+    return out
+
+
+def hexrgb(h):
+    h = h.lstrip("#"); return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def shade(c, k):
+    r, g, b = hexrgb(c); return "#%02x%02x%02x" % tuple(max(0, min(255, int(v * k))) for v in (r, g, b))
+
+
+def mix(a, b, u):
+    A, B = hexrgb(a), hexrgb(b); return "#%02x%02x%02x" % tuple(int(A[i] + (B[i] - A[i]) * u) for i in range(3))
+
+
+class Pic:
+    """Сборщик кадра: полигоны с глубиной (рисуются от дальних к ближним), градиенты, свечения."""
+    def __init__(self, cam, lights=(), soft=True, base=0.42):
+        self.cam, self.items, self.defs, self.top, self.n = cam, [], [], [], 0
+        self.lights, self.soft, self.base = lights, soft, base  # lights: [(X,Y,Z, радиус, цвет)]
+
+    def lit(self, color, X, Y, Z, base=None):
+        base = self.base if base is None else base
+        k = base
+        for lx, ly, lz, r, _c in self.lights:
+            d = math.dist((X, Y, Z), (lx, ly, lz)); k += (1 - base) * max(0.0, 1 - d / r) ** 1.4
+        return shade(color, min(1.25, k))
+
+    def gid(self):
+        self.n += 1; return f"g{self.n}"
+
+    def poly(self, pts3, color, stroke=True, grad=None, op=1.0, depth=None, lw=1.6, emissive=False):
+        C = clip_near([self.cam.cs(*q) for q in pts3])
+        if len(C) < 3:
+            return
+        P = [self.cam.proj(c) for c in C]
+        cx = sum(q[0] for q in pts3) / len(pts3); cy = sum(q[1] for q in pts3) / len(pts3); cz = sum(q[2] for q in pts3) / len(pts3)
+        fill = color if emissive else self.lit(color, cx, cy, cz)
+        d = " ".join(f"{x:.1f},{y:.1f}" for x, y, _ in P)
+        fs = f'fill="{fill}"'
+        if self.lights and not emissive and grad is None and self.soft:
+            lx, ly, lz, lr, lc = max(self.lights, key=lambda L: L[3] / (1 + math.dist((cx, cy, cz), L[:3])))
+            q = self.cam.p(lx, ly, lz); dep = max(0.3, sum(p[2] for p in P) / len(P))
+            R = lr * self.cam.f / dep * 1.15; g = self.gid()
+            warm = mix(color, lc, 0.25)
+            self.defs.append(f'<radialGradient id="{g}" gradientUnits="userSpaceOnUse" cx="{q[0]:.0f}" cy="{q[1]:.0f}" r="{R:.0f}"><stop offset="0" stop-color="{shade(warm, 1.22)}"/>'
+                             f'<stop offset=".45" stop-color="{shade(mix(color, lc, 0.12), 0.85)}"/><stop offset="1" stop-color="{shade(mix(color, "#1a2030", 0.25), self.base * 0.8)}"/></radialGradient>')
+            fs = f'fill="url(#{g})"'
+        if grad:  # вертикальный градиент: низ темнее/светлее
+            g = self.gid(); top, bot = self.lit(grad[0], cx, cy, cz), self.lit(grad[1], cx, cy, cz)
+            ys = [p[1] for p in P]
+            self.defs.append(f'<linearGradient id="{g}" gradientUnits="userSpaceOnUse" x1="0" y1="{min(ys):.0f}" x2="0" y2="{max(ys):.0f}"><stop offset="0" stop-color="{top}"/><stop offset="1" stop-color="{bot}"/></linearGradient>')
+            fs = f'fill="url(#{g})"'
+        st = f' stroke="{INK}" stroke-width="{lw * min(2.5, 3.0 / max(0.8, min(p[2] for p in P))):.2f}" stroke-linejoin="round"' if stroke else ""
+        self.items.append((depth if depth is not None else max(p[2] for p in P), f'<polygon points="{d}" {fs}{st} opacity="{op}"/>'))
+
+    def raw(self, depth, svg):
+        self.items.append((depth, svg))
+
+    def box(self, x0, x1, y0, y1, z0, z1, color, top=None, side=None, stroke=True, emissive=False):
+        """Ящик: рисуем видимые грани (перед, верх/низ, бок к камере)."""
+        c = self.cam
+        faces = []
+        if c.z < z0: faces.append(([(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0)], color))
+        if c.z > z1: faces.append(([(x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)], color))
+        if c.y > y1: faces.append(([(x0, y1, z0), (x1, y1, z0), (x1, y1, z1), (x0, y1, z1)], top or shade(color, 1.15)))
+        if c.y < y0: faces.append(([(x0, y0, z0), (x1, y0, z0), (x1, y0, z1), (x0, y0, z1)], shade(color, 0.7)))
+        if c.x < x0: faces.append(([(x0, y0, z0), (x0, y1, z0), (x0, y1, z1), (x0, y0, z1)], side or shade(color, 0.8)))
+        if c.x > x1: faces.append(([(x1, y0, z0), (x1, y1, z0), (x1, y1, z1), (x1, y0, z1)], side or shade(color, 0.8)))
+        dmax = max(c.p(x, y, z)[2] for x in (x0, x1) for y in (y0, y1) for z in (z0, z1))
+        for pts, col in faces:
+            self.poly(pts, col, stroke, depth=dmax, emissive=emissive)
+
+    def jar(self, X, Y, Z, r, h, body, lid="#c8a03a", label="#e8dcc0", fill=None):
+        """Банка/бутылка: тело-прямоугольник по проекции, крышка-эллипс, этикетка, блик."""
+        c = self.cam; xl, yb, d = c.p(X - r, Y, Z); xr, _, _ = c.p(X + r, Y, Z); _, yt, _ = c.p(X, Y + h, Z)
+        w = xr - xl; ry = max(1.5, w * 0.18); col = self.lit(body, X, Y, Z); lc = self.lit(lid, X, Y + h, Z); lab = self.lit(label or body, X, Y, Z)
+        lw = max(0.6, 1.4 / d * 1.8)
+        s = (f'<path d="M{xl:.1f} {yb:.1f} L{xl:.1f} {yt + ry:.1f} Q{xl:.1f} {yt:.1f} {xl + w / 2:.1f} {yt:.1f} Q{xr:.1f} {yt:.1f} {xr:.1f} {yt + ry:.1f} L{xr:.1f} {yb:.1f} Q{xl + w / 2:.1f} {yb + ry:.1f} {xl:.1f} {yb:.1f} Z" fill="{col}" stroke="{INK}" stroke-width="{lw:.2f}"/>'
+             f'<rect x="{xl:.1f}" y="{yt + (yb - yt) * 0.38:.1f}" width="{w:.1f}" height="{(yb - yt) * 0.3:.1f}" fill="{lab}" opacity=".9"/>'
+             f'<ellipse cx="{xl + w / 2:.1f}" cy="{yt:.1f}" rx="{w / 2 * 0.9:.1f}" ry="{ry * 0.8:.1f}" fill="{lc}" stroke="{INK}" stroke-width="{lw:.2f}"/>'
+             f'<rect x="{xl + w * 0.16:.1f}" y="{yt + ry * 1.5:.1f}" width="{max(1, w * 0.1):.1f}" height="{(yb - yt) * 0.55:.1f}" fill="#fff" opacity=".28"/>')
+        if label is None:
+            s = s.replace(f'fill="{lab}" opacity=".9"', 'fill="none" opacity="0"')
+        if fill:
+            hh = yb - yt; c2 = shade(col, 1.35); c3 = shade(col, .7)
+            if fill == "pickle":
+                s += "".join(f'<ellipse cx="{xl + w * u:.1f}" cy="{yt + hh * .58:.1f}" rx="{w * .11:.1f}" ry="{hh * .3:.1f}" fill="{c2}" stroke="{c3}" stroke-width="{lw * .6:.2f}"/>' for u in (.28, .52, .74))
+            elif fill == "tomato":
+                s += "".join(f'<circle cx="{xl + w * u:.1f}" cy="{yt + hh * v:.1f}" r="{w * .17:.1f}" fill="{c2}" stroke="{c3}" stroke-width="{lw * .6:.2f}"/>' for u, v in ((.3, .4), (.68, .45), (.45, .72), (.75, .8), (.25, .82)))
+            else:
+                s += f'<rect x="{xl + w * .1:.1f}" y="{yt + hh * .5:.1f}" width="{w * .8:.1f}" height="{hh * .2:.1f}" fill="{c3}" opacity=".5"/>'
+            s += f'<rect x="{xl + w * 0.14:.1f}" y="{yt + ry * 1.5:.1f}" width="{max(1, w * 0.08):.1f}" height="{hh * 0.6:.1f}" fill="#fff" opacity=".35"/>'
+        self.raw(d, s)
+
+    def glow(self, X, Y, Z, r, color, op=0.55):
+        x, y, d = self.cam.p(X, Y, Z); g = self.gid(); R = r * self.cam.f / d
+        self.defs.append(f'<radialGradient id="{g}"><stop offset="0" stop-color="{color}" stop-opacity="{op}"/><stop offset=".45" stop-color="{color}" stop-opacity="{op * 0.35}"/><stop offset="1" stop-color="{color}" stop-opacity="0"/></radialGradient>')
+        self.top.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{R:.0f}" fill="url(#{g})" style="mix-blend-mode:screen"/>')
+
+    def svg(self, sky="#101014", grade=("#2a3550", "#ffb060"), grain=0.07, vignette=0.55, particles=None):
+        body = "".join(s for _, s in sorted(self.items, key=lambda t: -t[0]))
+        defs = "".join(self.defs)
+        rnd = random.Random(7)
+        parts = ""
+        if particles:
+            kind, n = particles
+            for _ in range(n):
+                x, y, r = rnd.uniform(0, W), rnd.uniform(0, H), rnd.uniform(1.5, 5) if kind == "snow" else rnd.uniform(0.8, 2.6)
+                parts += f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.1f}" fill="{"#ffffff" if kind == "snow" else "#ffe6b8"}" opacity="{rnd.uniform(0.35, 0.9) if kind == "snow" else rnd.uniform(0.15, 0.5):.2f}"/>'
+        return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}"><defs>{defs}'
+                f'<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 1.2 -.35"/></filter>'
+                f'<radialGradient id="vig" cx="50%" cy="48%" r="72%"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="{vignette}"/></radialGradient>'
+                f'<linearGradient id="grade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{grade[0]}" stop-opacity=".18"/><stop offset="1" stop-color="{grade[1]}" stop-opacity=".08"/></linearGradient></defs>'
+                f'<rect width="{W}" height="{H}" fill="{sky}"/>{body}{"".join(self.top)}'
+                f'<rect width="{W}" height="{H}" fill="url(#grade)" style="mix-blend-mode:soft-light"/>'
+                f'<rect width="{W}" height="{H}" filter="url(#grain)" opacity="{grain}" style="mix-blend-mode:overlay"/>{parts}'
+                f'<rect width="{W}" height="{H}" fill="url(#vig)"/></svg>')
+
+
+# ---------- материалы ----------
+CONC, CONC_D, METAL, WOOD, BRICK = "#7d7a6e", "#4f4c45", "#6c737a", "#7a5534", "#8a4a38"
+JAR_COLS = ["#c0602a", "#7a8a2a", "#a8322a", "#d8a03a", "#6a8a4a", "#b84a3a"]
+
+
+def concrete_wall(pic, pts, seams_u=(), seams_v=(), col=CONC, plane="z", at=0.0, bolts=True):
+    pic.poly(pts, col)
+    # стыки плит и болты рисуем отдельными линиями в мировых координатах
+    xs = [p[0] for p in pts]; ys = [p[1] for p in pts]; zs = [p[2] for p in pts]
+    for u in seams_u:
+        a = (u, min(ys), at) if plane == "z" else (at, min(ys), u); b = (u, max(ys), at) if plane == "z" else (at, max(ys), u)
+        A, B = pic.cam.p(*a), pic.cam.p(*b); pic.raw(max(A[2], B[2]) - 0.01, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="#3a342c" stroke-width="{3.2 / max(A[2], B[2]) * 1.6:.2f}" opacity=".7"/>')
+    for v in seams_v:
+        a = (min(xs), v, at) if plane == "z" else (at, v, min(zs)); b = (max(xs), v, at) if plane == "z" else (at, v, max(zs))
+        A, B = pic.cam.p(*a), pic.cam.p(*b); pic.raw(max(A[2], B[2]) - 0.01, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="#3a342c" stroke-width="{3.2 / max(A[2], B[2]) * 1.6:.2f}" opacity=".7"/>')
+    if bolts:
+        for u in seams_u:
+            for v in [ys[0] + (max(ys) - min(ys)) * k for k in (0.15, 0.85)]:
+                for du in (-0.12, 0.12):
+                    q = (u + du, v, at) if plane == "z" else (at, v, u + du); x, y, d = pic.cam.p(*q)
+                    pic.raw(d - 0.02, f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{5 / d:.1f}" fill="#3e3a34"/>')
+
+
+def shelf_unit(pic, x, z0, z1, side=-1, levels=(0.35, 0.85, 1.35, 1.85), seed=1, kind="pantry"):
+    """Стеллаж вдоль стены: стойки, полки, банки/консервы/коробки."""
+    rnd = random.Random(seed); depth = 0.45; xin = x - side * depth
+    for z in (z0, z1):
+        pic.box(min(x, xin) - 0.02, min(x, xin) + 0.02 if side < 0 else max(x, xin) + 0.02, 0, levels[-1] + 0.15, z - 0.02, z + 0.02, METAL)
+        pic.box(max(x, xin) - 0.02, max(x, xin) + 0.02, 0, levels[-1] + 0.15, z - 0.02, z + 0.02, METAL)
+    for y in levels:
+        pic.box(min(x, xin), max(x, xin), y - 0.025, y, z0, z1, "#6d747b", top="#8a9198")
+        z = z0 + 0.06
+        while z < z1 - 0.08:
+            t = rnd.random()
+            cx = xin + side * 0.18
+            if kind == "pantry":
+                if t < 0.55:
+                    r = rnd.uniform(0.045, 0.06); pic.jar(cx + side * rnd.uniform(-0.05, 0.05), y, z, r, rnd.uniform(0.12, 0.2), rnd.choice(JAR_COLS)); z += r * 2 + 0.02
+                elif t < 0.85:
+                    r = 0.04; pic.jar(cx, y, z, r, 0.1, "#a8b0b6", lid="#c8ccd0", label=rnd.choice(["#c0392b", "#2c6aa0", "#d8a03a"])); z += 0.1
+                else:
+                    pic.box(cx - 0.14, cx + 0.14, y, y + 0.2, z, z + 0.26, "#b08a5a", top="#c8a070"); z += 0.3
+            else:
+                col = rnd.choice(["#c0392b", "#2c6aa0", "#e0a72a", "#3a9a5a", "#e07030", "#7a3aa0", "#f0f0e8"])
+                if t < 0.6:
+                    h = rnd.uniform(0.18, 0.3); pic.box(cx - 0.1, cx + 0.1, y, y + h, z, z + 0.14, col, top=shade(col, 1.2)); z += 0.16
+                else:
+                    r = 0.04; pic.jar(cx, y, z, r, rnd.uniform(0.18, 0.28), col, lid="#e8e8e8", label="#ffffff"); z += 0.1
+
+
+def wall_rack(pic, x0, x1, zb, levels=(0.3, 0.75, 1.2, 1.65, 2.1), seed=2):
+    """Стеллаж у задней стены лицом к камере, полный банок с соленьями (как в референсе)."""
+    rnd = random.Random(seed); dz = 0.42
+    for x in (x0, x1, (x0 + x1) / 2):
+        pic.box(x - 0.025, x + 0.025, 0, levels[-1] + 0.2, zb + dz - 0.03, zb + dz + 0.02, "#5a4632")
+    for y in levels:
+        pic.box(x0, x1, y - 0.035, y, zb, zb + dz, "#7a5a3a", top="#8e6c48")
+        x = x0 + 0.07
+        while x < x1 - 0.07:
+            t = rnd.random()
+            if t < 0.4:
+                r = rnd.uniform(.055, .07); pic.jar(x + r, y, zb + 0.24, r, rnd.uniform(.17, .24), rnd.choice(["#6a8a2a", "#7a9a3a", "#5a7a2a"]), lid=rnd.choice(["#e8e4d8", "#c8a03a"]), label=None, fill="pickle")
+            elif t < 0.7:
+                r = rnd.uniform(.055, .07); pic.jar(x + r, y, zb + 0.24, r, rnd.uniform(.15, .22), rnd.choice(["#b8321e", "#c8422a", "#a82a1a"]), lid=rnd.choice(["#e8e4d8", "#c8a03a"]), label=None, fill="tomato")
+            elif t < 0.85:
+                r = .05; pic.jar(x + r, y, zb + 0.24, r, .13, rnd.choice(["#d89a2a", "#8a2a3a", "#c86a2a"]), lid="#e8e4d8", label=None, fill="jam")
+            else:
+                r = .042; pic.jar(x + r, y, zb + 0.26, r, .11, "#a8b0b6", lid="#c8ccd0", label=rnd.choice(["#c0392b", "#2c6aa0", "#d8a03a"]))
+            x += 2 * r + 0.025
+
+
+def hanging_lamp(pic, X, Y, Z, color="#ffcf8a"):
+    a, b = pic.cam.p(X, Y + 0.45, Z), pic.cam.p(X, Y, Z)
+    pic.raw(b[2] - 0.05, f'<line x1="{a[0]:.0f}" y1="{a[1]:.0f}" x2="{b[0]:.0f}" y2="{b[1]:.0f}" stroke="#1c1916" stroke-width="{3 / b[2] * 1.5:.1f}"/>')
+    x, y, d = pic.cam.p(X, Y - 0.08, Z); r = 0.085 * pic.cam.f / d
+    pic.raw(d - 0.05, f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{r:.0f}" ry="{r * 1.2:.0f}" fill="#fff4dc"/>'
+                      f'<g stroke="#2a2420" stroke-width="{r * 0.12:.1f}" fill="none"><ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{r * 1.15:.0f}" ry="{r * 1.35:.0f}"/><line x1="{x:.0f}" y1="{y - r * 1.35:.0f}" x2="{x:.0f}" y2="{y + r * 1.35:.0f}"/><line x1="{x - r * 1.15:.0f}" y1="{y:.0f}" x2="{x + r * 1.15:.0f}" y2="{y:.0f}"/></g>'
+                      f'<rect x="{x - r * 0.6:.0f}" y="{y - r * 1.6:.0f}" width="{r * 1.2:.0f}" height="{r * 0.4:.0f}" fill="#3a3530"/>')
+    pic.glow(X, Y - 0.08, Z, 1.0, color, 0.5)
+
+
+# ---------- сцены ----------
+def bunker(cam, hatch_open=False, torch=False, red=False):
+    """Бункер: бетон, стеллажи с банками слева, короб вентиляции, люк в потолке с лестницей, лампа, проём в техкомнату справа."""
+    L = [(-0.4, 2.35, -1.6, 4.2, "#ffb860")] + ([(1.0, 2.7, -3.0, 3.5, "#ff5030")] if red else [])
+    pic = Pic(cam, L, base=0.32)
+    Wl, Wr, Hc, Zb, Zf = -3.2, 3.2, 2.8, -4.4, 2.0
+    concrete_wall(pic, [(Wl, 0, Zb), (Wr, 0, Zb), (Wr, Hc, Zb), (Wl, Hc, Zb)], seams_u=(-1.6, 0, 1.6), seams_v=(1.4,), at=Zb)
+    concrete_wall(pic, [(Wl, 0, Zf), (Wl, 0, Zb), (Wl, Hc, Zb), (Wl, Hc, Zf)], seams_u=(-0.4, -2.4), seams_v=(1.4,), plane="x", at=Wl)
+    # правая стена с проёмом
+    for z0, z1 in ((Zf, -1.3), (-2.4, Zb)):
+        concrete_wall(pic, [(Wr, 0, z0), (Wr, 0, z1), (Wr, Hc, z1), (Wr, Hc, z0)], seams_u=((z0 + z1) / 2,), seams_v=(1.4,), plane="x", at=Wr)
+    pic.poly([(Wr, 2.1, -1.3), (Wr, 2.1, -2.4), (Wr, Hc, -2.4), (Wr, Hc, -1.3)], CONC)
+    pic.poly([(Wr + 0.01, 0, -1.3), (Wr + 0.01, 0, -2.4), (Wr + 0.01, 2.1, -2.4), (Wr + 0.01, 2.1, -1.3)], "#c89858", stroke=False, depth=8)
+    pic.glow(Wr + 0.5, 1.4, -1.85, 1.2, "#ffc070", 0.35)
+    # пол и потолок
+    pic.poly([(Wl, 0, Zf), (Wr, 0, Zf), (Wr, 0, Zb), (Wl, 0, Zb)], CONC_D, depth=99)
+    for x in (-1.6, 0, 1.6):
+        A, B = cam.p(x, 0, Zf), cam.p(x, 0, Zb); pic.raw(98, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#2e2a24" stroke-width="2.5" opacity=".6"/>')
+    for z in (0.0, -1.6, -3.0):
+        A, B = cam.p(Wl, 0, z), cam.p(Wr, 0, z); pic.raw(98, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#2e2a24" stroke-width="2.5" opacity=".6"/>')
+    x, y, d = cam.p(0.6, 0, -0.6); pic.raw(97, f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{1.0 * cam.f / d:.0f}" ry="{0.25 * cam.f / d:.0f}" fill="#4a4a50" opacity=".35"/>')
+    pic.poly([(Wl, Hc, Zf), (Wr, Hc, Zf), (Wr, Hc, Zb), (Wl, Hc, Zb)], "#6e675d", depth=99)
+    # короб вентиляции вдоль левого угла потолка
+    for z in [Zf - k * 0.5 for k in range(13)]:
+        pic.box(-2.75, -2.25, 2.35, 2.75, z - 0.5, z, "#9aa1a8", top="#b8bec4", side="#7e858c")
+    # кабели
+    for dx, col in ((-1.5, "#141210"), (-1.38, "#5a2420")):
+        A, B = cam.p(dx, Hc - 0.06, Zf), cam.p(dx, Hc - 0.06, Zb); pic.raw(50, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="{col}" stroke-width="5"/>')
+    # стеллажи слева
+    shelf_unit(pic, Wl, -0.9, 0.7, side=-1, seed=3); shelf_unit(pic, Wl, -2.8, -1.2, side=-1, seed=5)
+    # ящики и канистры у задней стены справа
+    for x0, y0 in ((1.8, 0), (2.25, 0), (2.0, 0.34)):
+        pic.box(x0, x0 + 0.42, y0, y0 + 0.34, -4.35, -3.95, WOOD, top="#94693e")
+    pic.box(2.75, 3.05, 0, 0.42, -3.5, -3.3, "#4a5a3a", top="#5c6c4a")
+    # огнетушитель и щиток на правой стене
+    pic.box(3.05, 3.2, 0.65, 1.15, 0.1, 0.25, "#a8281e", top="#c03a2a")
+    pic.box(3.12, 3.2, 1.45, 1.95, -3.7, -3.2, "#6a7076")
+    wall_rack(pic, -3.0, -0.3, -4.4)
+    # лавка
+    pic.box(-2.7, -0.4, 0.42, 0.48, -3.75, -3.35, WOOD, top="#94693e")
+    for x0 in (-2.6, -0.6):
+        pic.box(x0, x0 + 0.08, 0, 0.42, -3.7, -3.4, shade(WOOD, 0.8))
+    # люк в потолке и лестница
+    hx, hz, r = 1.0, -3.0, 0.42
+    ring = [cam.p(hx + math.cos(a) * r, Hc - 0.005, hz + math.sin(a) * r) for a in [k / 40 * math.tau for k in range(40)]]
+    dring = max(q[2] for q in ring)
+    inner = "#2a0e0a" if (hatch_open and red) else ("#0a0908" if hatch_open else "#3d434a")
+    pic.raw(dring - 0.1, f'<polygon points="{" ".join(f"{q[0]:.1f},{q[1]:.1f}" for q in ring)}" fill="{inner}" stroke="#20242a" stroke-width="{14 / dring:.1f}"/>')
+    if not hatch_open:
+        ring2 = [cam.p(hx + math.cos(a) * r * 0.55, Hc - 0.01, hz + math.sin(a) * r * 0.55) for a in [k / 32 * math.tau for k in range(32)]]
+        pic.raw(dring - 0.11, f'<polygon points="{" ".join(f"{q[0]:.1f},{q[1]:.1f}" for q in ring2)}" fill="none" stroke="#9aa3ac" stroke-width="{9 / dring:.1f}"/>')
+        a, b = cam.p(hx - r * 0.6, Hc - 0.01, hz), cam.p(hx + r * 0.6, Hc - 0.01, hz)
+        pic.raw(dring - 0.11, f'<line x1="{a[0]:.0f}" y1="{a[1]:.0f}" x2="{b[0]:.0f}" y2="{b[1]:.0f}" stroke="#9aa3ac" stroke-width="{9 / dring:.1f}"/>')
+    for dx in (-0.24, 0.24):
+        pic.box(hx + dx - 0.025, hx + dx + 0.025, 0, Hc, hz - r + 0.03, hz - r + 0.08, "#5d6670", side="#4a525a")
+    for y in [0.3 + k * 0.32 for k in range(8)]:
+        pic.box(hx - 0.24, hx + 0.24, y, y + 0.035, hz - r + 0.04, hz - r + 0.075, "#717a84")
+    pic.box(1.5, 2.9, 1.15, 1.95, -4.39, -4.36, "#8a6a44", top="#9a7a54")          # щит с инструментами
+    for k, (dx, h, col) in enumerate(((-0.75, 0.5, "#555c64"), (-0.55, 0.38, "#a83a2a"), (-0.35, 0.45, "#555c64"), (-0.12, 0.3, "#c8a03a"), (0.1, 0.42, "#555c64"), (0.32, 0.35, "#3a5a8a"))):
+        pic.box(dx + 2.4, dx + 2.47, 1.85 - h, 1.85, -4.35, -4.33, col)
+    for x0, col in ((-3.0, "#3c5a34"), (-2.7, "#a8321e")):                          # канистры
+        pic.box(x0, x0 + 0.25, 0, 0.42, 1.0, 1.15, col, top=shade(col, 1.2))
+    for x0 in (2.2, 2.6):                                                          # вёдра
+        pic.jar(x0, 0, 0.9, 0.16, 0.32, "#8c949c", lid="#5c636a", label="#8c949c")
+    for z in [1.8 - k * 0.25 for k in range(26)]:                                  # труба по правой стене
+        pic.box(3.05, 3.15, 2.45, 2.55, z - 0.25, z, "#7a6a5a", top="#8a7a6a")
+    hanging_lamp(pic, -0.4, 2.35, -1.6)
+    if torch:
+        x, y, d = cam.p(hx + 0.1, Hc + 0.6, hz + 0.1)
+        pic.top.append(f'<polygon points="{x - 18:.0f},{y:.0f} {x + 18:.0f},{y:.0f} {x + 420:.0f},1920 {x - 380:.0f},1920" fill="#fff2cc" opacity=".08" style="mix-blend-mode:screen"/>')
+    return pic
+
+
+def bunker_up(cam, people_svg=""):
+    """Вид снизу в открытый люк: темнота, красный отсвет сирены, фонарик светит вниз, люди наверху."""
+    pic = Pic(cam, [(1.0, 3.6, -2.9, 1.2, "#ff5a3a")], base=0.3)
+    Hc, hx, hz, r = 2.8, 1.0, -3.0, 0.42
+    pic.poly([(-3.2, Hc, 2), (3.2, Hc, 2), (3.2, Hc, -4.4), (-3.2, Hc, -4.4)], "#3e3a35", depth=90)
+    for z in (-1.6, -3.0):
+        A, B = cam.p(-3.2, Hc, z), cam.p(3.2, Hc, z); pic.raw(89, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#2e2a24" stroke-width="4" opacity=".6"/>')
+    ring = [cam.p(hx + math.cos(a) * r, Hc, hz + math.sin(a) * r) for a in [k / 48 * math.tau for k in range(48)]]
+    pts = " ".join(f"{q[0]:.1f},{q[1]:.1f}" for q in ring)
+    g = pic.gid()
+    pic.defs.append(f'<radialGradient id="{g}" cx="45%" cy="40%" r="65%"><stop offset="0" stop-color="#5a1410"/><stop offset=".6" stop-color="#1e0806"/><stop offset="1" stop-color="#080404"/></radialGradient>'
+                    f'<clipPath id="hc"><polygon points="{pts}"/></clipPath>')
+    pic.raw(50, f'<polygon points="{pts}" fill="url(#{g})"/>')
+    cx = sum(q[0] for q in ring) / len(ring); cy = sum(q[1] for q in ring) / len(ring)
+    pic.raw(49, f'<g clip-path="url(#hc)">{people_svg}<circle cx="{cx + 20:.0f}" cy="{cy + 10:.0f}" r="26" fill="#fffbe8"/><circle cx="{cx + 20:.0f}" cy="{cy + 10:.0f}" r="120" fill="#fff3d0" opacity=".25"/></g>')
+    pic.raw(48, f'<polygon points="{pts}" fill="none" stroke="#7a838c" stroke-width="22"/><polygon points="{pts}" fill="none" stroke="#3a3e44" stroke-width="8"/>')
+    pic.top.append(f'<polygon points="{cx + 2:.0f},{cy + 10:.0f} {cx + 38:.0f},{cy + 10:.0f} {cx + 520:.0f},1920 {cx - 420:.0f},1920" fill="#fff2cc" opacity=".12" style="mix-blend-mode:screen"/>')
+    for dx in (-0.24, 0.24):
+        pic.box(hx + dx - 0.025, hx + dx + 0.025, 0, Hc, hz - r + 0.03, hz - r + 0.08, "#6a4a48")
+    for y in [0.3 + k * 0.32 for k in range(8)]:
+        pic.box(hx - 0.24, hx + 0.24, y, y + 0.035, hz - r + 0.04, hz - r + 0.075, "#7a5654")
+    return pic
+
+
+def market(cam):
+    """Рынок в сумерках: снег, прилавок под навесом, ящики с овощами, мешки, кирпичная стена, фонарь."""
+    pic = Pic(cam, [(0.0, 2.1, -1.2, 4.0, "#ffb070"), (-3.5, 3.2, -3.0, 5.0, "#ffd090")], base=0.4)
+    sky = Pic(cam)
+    pic.poly([(-8, 0, 4), (8, 0, 4), (8, 0, -6), (-8, 0, -6)], "#d8dde6", grad=("#b8c0d0", "#eef0f4"), stroke=False, depth=99)
+    for k in range(-3, 4):
+        pic.box(k * 2.2 - 1.1, k * 2.2 + 1.1, 0, 3.2, -4.4, -4.0, BRICK, top="#e8ecf2")
+        for v in (0.8, 1.6, 2.4):
+            A, B = cam.p(k * 2.2 - 1.1, v, -4.0), cam.p(k * 2.2 + 1.1, v, -4.0)
+            pic.raw(A[2] - 0.05, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#5a3022" stroke-width="2" opacity=".5"/>')
+    pic.box(-3.0, -1.9, 0, 2.2, -3.95, -3.9, "#3a5a6a")
+    pic.box(-1.3, 1.3, 0, 0.85, -1.9, -1.1, WOOD, top="#946a42")
+    for x in (-1.25, 1.25):
+        pic.box(x - 0.04, x + 0.04, 0, 2.3, -1.15, -1.07, shade(WOOD, 0.8))
+    pic.poly([(-1.5, 2.3, -0.9), (1.5, 2.3, -0.9), (1.5, 2.55, -2.1), (-1.5, 2.55, -2.1)], "#b03a2a")
+    for k in range(6):
+        pic.poly([(-1.5 + k * 0.5, 2.3, -0.9), (-1.25 + k * 0.5, 2.3, -0.9), (-1.25 + k * 0.5, 2.55, -2.1), (-1.5 + k * 0.5, 2.55, -2.1)], "#e8dcc8", stroke=False)
+    veg = ["#d06828", "#7a9a3a", "#a8322a", "#d8b04a"]
+    for k in range(4):
+        x0 = -1.15 + k * 0.58
+        pic.box(x0, x0 + 0.5, 0.85, 1.0, -1.8, -1.35, shade(WOOD, 1.1), top="#a8804e")
+        for j in range(8):
+            pic.jar(x0 + 0.07 + (j % 4) * 0.11, 0.98, -1.75 + (j // 4) * 0.18, 0.05, 0.08, veg[k], lid=veg[k], label=veg[k])
+    for x in (-1.9, -1.45):
+        pic.box(x - 0.2, x + 0.2, 0, 0.6, -0.9, -0.55, "#b8a27a", top="#ccb88e")
+    for sx0, col in ((-4.2, "#3a6a8a"), (3.6, "#6a3a7a")):                       # соседние прилавки
+        pic.box(sx0 - 0.9, sx0 + 0.9, 0, 0.85, -2.6, -1.9, WOOD, top="#946a42")
+        pic.poly([(sx0 - 1.1, 2.2, -1.7), (sx0 + 1.1, 2.2, -1.7), (sx0 + 1.1, 2.45, -2.8), (sx0 - 1.1, 2.45, -2.8)], col)
+        pic.poly([(sx0 - 1.1, 2.45, -2.8), (sx0 + 1.1, 2.45, -2.8), (sx0 + 1.1, 2.5, -2.75), (sx0 - 1.1, 2.5, -2.75)], "#f0f2f6", stroke=False)
+    pic.poly([(-1.5, 2.55, -2.1), (1.5, 2.55, -2.1), (1.5, 2.6, -2.05), (-1.5, 2.6, -2.05)], "#f2f4f8", stroke=False)   # снег на навесе
+    for k in range(14):                                                            # гирлянда
+        x = -1.5 + k * 3.0 / 13; yy = 2.28 - 0.08 * math.sin(k / 13 * math.pi)
+        q = cam.p(x, yy, -0.92); pic.raw(q[2] - 0.2, f'<circle cx="{q[0]:.0f}" cy="{q[1]:.0f}" r="{7 / q[2] * 1.6:.1f}" fill="#ffd070"/>'); pic.glow(x, yy, -0.92, 0.25, "#ffc860", 0.5)
+    lx, ly, d = cam.p(-3.5, 3.4, -3.0)
+    pic.box(-3.55, -3.45, 0, 3.4, -3.05, -2.95, "#2a2a2e")
+    pic.glow(-3.5, 3.4, -3.0, 2.6, "#ffcf8a", 0.65)
+    pic.glow(0.0, 2.1, -1.4, 2.2, "#ffb070", 0.45)
+    return pic
+
+
+def supermarket(cam):
+    """Супермаркет: плитка, ряды полок с подписанными товарами и ценниками, лампы дневного света."""
+    pic = Pic(cam, [(0, 3.1, -2.0, 7.0, "#eef4ff"), (0, 3.1, -6.0, 7.0, "#eef4ff")], base=0.55)
+    pic.poly([(-3, 0, 3), (3, 0, 3), (3, 0, -12), (-3, 0, -12)], "#cfc8bc", depth=99)
+    for z in [3 - k * 0.6 for k in range(26)]:
+        A, B = cam.p(-3, 0, z), cam.p(3, 0, z); pic.raw(98, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#a8a094" stroke-width="2"/>')
+    for x in (-1.8, -0.6, 0.6, 1.8):
+        A, B = cam.p(x, 0, 3), cam.p(x, 0, -12); pic.raw(98, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#a8a094" stroke-width="2"/>')
+    pic.poly([(-3, 3.2, 3), (3, 3.2, 3), (3, 3.2, -12), (-3, 3.2, -12)], "#e8e6e0", stroke=False, depth=99)
+    pic.poly([(-3, 0, -12), (3, 0, -12), (3, 3.2, -12), (-3, 3.2, -12)], "#d8d0c0", depth=98)
+    for side in (-1, 1):
+        x = side * 1.0
+        pic.box(min(x, x + side * 0.6) - 0.0, max(x, x + side * 0.6), 0, 0.15, -11, 2.5, "#3a3d44")
+        shelf_unit(pic, x + side * 0.55, -10.5, 2.4, side=side, levels=(0.3, 0.75, 1.2, 1.65, 2.1), seed=11 + side, kind="store")
+        for z in range(-10, 3, 2):  # ценники
+            xx, yy, d = cam.p(x + side * 0.02, 0.62, z); pic.raw(d - 0.05, f'<rect x="{xx - 22 / d:.0f}" y="{yy:.0f}" width="{44 / d:.0f}" height="{22 / d:.0f}" fill="#f6d84a" stroke="{INK}" stroke-width="{1 / d:.1f}"/>')
+    for z, col in ((-3.5, "#c0392b"), (-7.5, "#2c6aa0")):                          # подвесные указатели
+        pic.box(-0.5, 0.5, 2.55, 2.8, z - 0.02, z + 0.02, col, top=col)
+        for xx in (-0.3, 0.3):
+            a, b = cam.p(xx, 2.8, z), cam.p(xx, 3.2, z); pic.raw(a[2], f'<line x1="{a[0]:.0f}" y1="{a[1]:.0f}" x2="{b[0]:.0f}" y2="{b[1]:.0f}" stroke="#555" stroke-width="2"/>')
+    for z in (0.5, -2.5, -5.5, -8.5):
+        pic.box(-0.9, 0.9, 3.08, 3.14, z - 0.1, z + 0.1, "#fbfdff", stroke=False, emissive=True)
+        pic.glow(0, 3.0, z, 2.2, "#f0f6ff", 0.45)
+    return pic
+
+
+def pharmacy(cam):
+    """Аптека: светлая плитка, прилавок, стена с ячейками и коробками лекарств, зелёный светящийся крест."""
+    pic = Pic(cam, [(0, 2.9, -1.0, 5.0, "#f4fff8")], base=0.46)
+    pic.poly([(-3, 0, 3), (3, 0, 3), (3, 0, -4), (-3, 0, -4)], "#d8dcd4", depth=99)
+    for z in [3 - k * 0.5 for k in range(15)]:
+        A, B = cam.p(-3, 0, z), cam.p(3, 0, z); pic.raw(98, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#b0b6ac" stroke-width="2"/>')
+    pic.poly([(-3, 0, -4), (3, 0, -4), (3, 3.1, -4), (-3, 3.1, -4)], "#b8d4c4", depth=98)
+    pic.poly([(-3, 0, -3.99), (3, 0, -3.99), (3, 1.0, -3.99), (-3, 1.0, -3.99)], "#5a8a74", depth=97.5)
+    pic.poly([(-3, 0, 3), (-3, 0, -4), (-3, 3.1, -4), (-3, 3.1, 3)], "#a8c4b4", depth=97)
+    rnd = random.Random(4); meds = ["#e8e8f0", "#3a7ac0", "#e05a4a", "#4ab07a", "#f0c040", "#9a6ac0"]
+    for row in range(5):
+        y = 0.55 + row * 0.42
+        pic.box(-2.2, 2.2, y - 0.03, y, -3.95, -3.6, "#f4f2ec")
+        x = -2.15
+        while x < 2.1:
+            w = rnd.uniform(0.12, 0.22); h = rnd.uniform(0.18, 0.3); c = rnd.choice(meds)
+            pic.box(x, x + w, y, y + h, -3.9, -3.75, c, top=shade(c, 1.15)); x += w + 0.03
+    pic.poly([(-3, 3.1, 3), (3, 3.1, 3), (3, 3.1, -4), (-3, 3.1, -4)], "#b4c2ba", depth=99)
+    for z in (-0.5, -2.5):
+        pic.box(-0.8, 0.8, 3.04, 3.09, z - 0.15, z + 0.15, "#fbfdff", stroke=False, emissive=True)
+    pic.box(-2.0, 2.0, 0, 1.0, -2.6, -2.0, "#f2f0ea", top="#e2e0d8")
+    pic.box(-2.0, 2.0, 1.0, 1.05, -2.65, -1.95, "#b8c8c0")
+    pic.box(0.9, 1.4, 1.05, 1.35, -2.4, -2.1, "#3a3d44", top="#50545c")
+    for (x0, x1, y0, y1) in ((-0.25, 0.25, 2.65, 2.8), (-0.075, 0.075, 2.48, 2.97)):
+        pic.box(x0, x1, y0, y1, -3.98, -3.94, "#2ab060", stroke=False)
+    pic.glow(0, 2.72, -3.9, 1.0, "#3aff8a", 0.5)
+    return pic

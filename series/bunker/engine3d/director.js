@@ -1,7 +1,7 @@
 // Режиссёр ролика: миры (бункер/улица), камера по планам, размытие фона на крупных планах, 2D-персонажи с шагом,
 // лестницей, посадкой и мимикой, таблички как в референсе, телефон от первого лица, реплики, субтитры, опрос.
 import * as THREE from 'three';
-import { buildBunker, buildVillage } from './world.js';
+import { buildBunker, buildVillage, buildTown } from './world.js';
 import { Char, FACES, lerpFace } from './rig.js';
 
 const W = 1080, H = 1920;
@@ -11,8 +11,8 @@ renderer.setPixelRatio(1); renderer.setSize(W, H);
 renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const canvas = renderer.domElement; document.getElementById('stage').appendChild(canvas);
-const worlds = { bunker: new THREE.Scene(), village: new THREE.Scene() };
-const B = buildBunker(worlds.bunker, renderer); buildVillage(worlds.village, renderer);
+const worlds = { bunker: new THREE.Scene(), village: new THREE.Scene(), town: new THREE.Scene() };
+const B = buildBunker(worlds.bunker, renderer); buildVillage(worlds.village, renderer); buildTown(worlds.town, renderer);
 const cam = new THREE.PerspectiveCamera(62, W / H, 0.05, 80);
 const svg = document.getElementById('chars'), ui = document.getElementById('ui'), capEl = document.getElementById('cap');
 
@@ -54,13 +54,17 @@ function project(x, y, z) { v3.set(x, y, z).project(cam); return [(v3.x + 1) / 2
 window.R = function (t) {
   const shot = S.shots.find(s => t >= s.t0 && t < s.t1) || S.shots[S.shots.length - 1];
   const scene = worlds[shot.world || 'bunker'];
-  const c = keyAt(shot.cam, t).v; cam.position.set(c.x, c.y, c.z); cam.lookAt(c.tx, c.ty, c.tz); cam.fov = c.fov || 62; cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+  const c = { ...keyAt(shot.cam, t).v };
+  if (shot.follow) { const f = shot.follow, cp = keyAt(S.chars[f.c].path, t).v;  // камера ведёт персонажа
+    c.x = cp.x + f.off[0]; c.y = (cp.y || 0) + f.off[1]; c.z = cp.z + f.off[2]; c.tx = cp.x + (f.look?.[0] || 0); c.ty = (cp.y || 0) + (f.look?.[1] ?? 1.0); c.tz = cp.z + (f.look?.[2] || 0); }
+  cam.position.set(c.x, c.y, c.z); cam.lookAt(c.tx, c.ty, c.tz); cam.fov = c.fov || 62; cam.updateProjectionMatrix(); cam.updateMatrixWorld();
   // люк: стук, открытие, красный свет сверху
   const knock = inAny(S.knocks, t);
   const lidOpen = S.lidOpen ? cl((t - S.lidOpen[0]) / (S.lidOpen[1] - S.lidOpen[0])) : 0;
   B.lidPivot.rotation.x = (knock ? 0.035 * Math.sin(t * 55) : 0) - ease(lidOpen) * 1.9;
   const redOn = S.redFrom != null && t >= S.redFrom ? 1 : 0, flick = 0.75 + 0.25 * Math.sin(t * 6);
-  B.red.intensity = 60 * Math.max(lidOpen, 0) * redOn * flick; B.upRed.intensity = 14 * redOn * flick; B.upBulb.material.emissiveIntensity = 5 * redOn;
+  B.red.intensity = 45 * Math.max(lidOpen, 0) * redOn * flick; B.upRed.intensity = 5 * redOn * flick;
+  const torchOn = S.torchFrom != null && t >= S.torchFrom ? 1 : 0; B.torch.intensity = 35 * torchOn * Math.max(lidOpen, 0); B.coneM.opacity = 0.07 * torchOn * Math.max(lidOpen, 0);
   B.crank.rotation.x = inAny(S.crank, t) ? t * 5 : 0;
   const lampOn = S.lampOff && t >= S.lampOff ? 0 : 1; B.lamp.intensity = 9 * lampOn; B.bulb.material.emissiveIntensity = 6 * lampOn;
   // частицы
@@ -89,7 +93,7 @@ window.R = function (t) {
       const wave = p.wave || 0;
       st.sh = [-20 * sw + (p.armL || 0) - 12 * st.sit, 20 * sw + (p.armR || 0) + 12 * st.sit - wave * (150 + 12 * Math.sin(t * 9))];
       st.elb = [-10 * amp + (p.elbL || 0) - 45 * st.sit, 10 * amp + (p.elbR || 0) + 45 * st.sit - wave * 20]; st.bob = -Math.abs(Math.sin(phase)) * 4 * amp; }
-    st.head = p.head || 0; st.gazeY = p.gazeY || 0; st.gaze = p.gaze || 0; st.look = p.look || 0; st.sweat = p.sweat || 0;
+    st.head = p.head || 0; st.gazeY = p.gazeY || 0; st.gaze = (p.gaze || 0) + 0.8 * Math.sin(t * 0.9 + s.blinkOff * 3); st.look = (p.look || 0) + 1.2 * Math.sin(t * 0.6 + s.blinkOff * 5); st.sweat = p.sweat || 0; st.bag = (p.bag || 0) > 0.5;
     st.talk = inAny(s.talk, t) ? 0.35 + 0.35 * Math.sin(t * 22) : 0;
     const y0 = p.y || 0, [fx, fy, fz] = project(p.x, y0, p.z), [, hy] = project(p.x, y0 + 1.75, p.z);
     st.x = fx; st.y = fy; st.k = (fy - hy) / 180;
@@ -107,6 +111,7 @@ window.R = function (t) {
     const on = t >= u.t0 && t < u.t1; d.style.display = on ? '' : 'none'; if (!on) continue;
     const k = eo(cl((t - u.t0) / 0.18)); let tr = `scale(${(0.6 + 0.4 * k).toFixed(3)})`;
     if (u.kind.includes('pulse')) tr = `scale(${(1 + 0.05 * Math.sin(t * 7)).toFixed(3)})`;
+    if (u.kind.includes('phone')) tr = `translate(${(6 * Math.sin(t * 1.3)).toFixed(1)}px,${(8 * Math.sin(t * 1.9) + 30 * (1 - k)).toFixed(1)}px) rotate(${(1.2 * Math.sin(t * 1.1)).toFixed(2)}deg)`;
     if (u.anchor != null && chars[u.anchor].screen) { const [sx, sy] = chars[u.anchor].screen; const w = d.offsetWidth || 400; d.style.left = Math.max(30, Math.min(1050 - w, sx - 40)) + 'px'; d.style.top = Math.max(120, sy - 170) + 'px'; }
     d.style.transform = tr; d.style.opacity = k.toFixed(3);
     for (const m of d.querySelectorAll('[data-t]')) { const mt = +m.dataset.t; m.style.opacity = t >= mt ? eo(cl((t - mt) / 0.2)).toFixed(3) : 0; m.style.transform = `translateY(${(1 - eo(cl((t - mt) / 0.2))) * 20}px)`; }
