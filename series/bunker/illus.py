@@ -239,6 +239,89 @@ def wall_rack(pic, x0, x1, zb, levels=(0.3, 0.75, 1.2, 1.65, 2.1), seed=2):
             x += 2 * r + 0.025
 
 
+# ---------- детали ----------
+def ftext(pic, X, Y, Z, text, size, col="#2a221c", depth_bias=-0.03, weight=800, anchor="middle"):
+    """Надпись на передней грани (размер в метрах, масштаб по глубине)."""
+    x, y, d = pic.cam.p(X, Y, Z)
+    pic.raw(d + depth_bias, f'<text x="{x:.1f}" y="{y:.1f}" text-anchor="{anchor}" font-family="Inter, DejaVu Sans" font-weight="{weight}" font-size="{size * pic.cam.f / d:.1f}" fill="{col}">{text}</text>')
+
+
+def sack(pic, X, Z, label="МУКА", col="#d8c8a0", w=0.5, h=0.55):
+    pic.box(X - w / 2, X + w / 2, 0, h, Z - 0.18, Z + 0.18, col, top=shade(col, 1.08))
+    x, y, d = pic.cam.p(X, h, Z); r = 0.12 * pic.cam.f / d
+    pic.raw(d - 0.05, f'<path d="M{x - r:.0f} {y:.0f} Q{x} {y - r * 1.6:.0f} {x + r:.0f} {y:.0f}" fill="{col}" stroke="{INK}" stroke-width="{max(.6, 3 / d):.1f}"/><line x1="{x - r * .5:.0f}" y1="{y - r * .4:.0f}" x2="{x + r * .5:.0f}" y2="{y - r * .4:.0f}" stroke="#6a4a2a" stroke-width="{max(.6, 4 / d):.1f}"/>')
+    ftext(pic, X, h * 0.45, Z + 0.19, label, 0.09, "#4a3a28")
+
+
+def water_pack(pic, X, Z, n=3, rows=2):
+    for j in range(rows):
+        for k in range(n):
+            pic.jar(X + k * 0.2, 0, Z - j * 0.2, 0.09, 0.34, "#5aa0d0", lid="#2c6aa0", label="#e8f0f4")
+
+
+def crate_text(pic, x0, x1, y0, y1, z0, z1, text, col="#94693e"):
+    pic.box(x0, x1, y0, y1, z0, z1, WOOD, top=col)
+    ftext(pic, (x0 + x1) / 2, (y0 + y1) / 2 - 0.03, z1 + 0.005, text, 0.075, "#2a1a0c")
+
+
+def calendar(pic, X, Y, Z, marks=22):
+    c = pic.cam; w, h = 0.5, 0.62
+    pic.box(X - w / 2, X + w / 2, Y - h, Y, Z, Z + 0.01, "#f2ecdc", top="#f2ecdc")
+    pic.box(X - w / 2, X + w / 2, Y - 0.12, Y, Z + 0.01, Z + 0.015, "#b8321e")
+    ftext(pic, X, Y - 0.08, Z + 0.02, "2026", 0.06, "#ffffff")
+    for k in range(35):
+        cx_, cy_ = X - w / 2 + 0.05 + (k % 7) * 0.065, Y - 0.19 - (k // 7) * 0.085
+        A = c.p(cx_, cy_, Z + 0.02); r = 0.022 * c.f / A[2]
+        if k < marks:
+            pic.raw(A[2] - 0.05, f'<path d="M{A[0] - r:.1f} {A[1] - r:.1f} L{A[0] + r:.1f} {A[1] + r:.1f} M{A[0] + r:.1f} {A[1] - r:.1f} L{A[0] - r:.1f} {A[1] + r:.1f}" stroke="#c0302a" stroke-width="{max(.8, r * .35):.1f}"/>')
+        else:
+            pic.raw(A[2] - 0.05, f'<rect x="{A[0] - r:.1f}" y="{A[1] - r:.1f}" width="{2 * r:.1f}" height="{2 * r:.1f}" fill="none" stroke="#8a8478" stroke-width="{max(.5, r * .12):.1f}"/>')
+
+
+def wall_clock(pic, X, Y, Z):
+    x, y, d = pic.cam.p(X, Y, Z); r = 0.16 * pic.cam.f / d
+    pic.raw(d - 0.05, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="#f4f0e4" stroke="{INK}" stroke-width="{r * .12:.1f}"/><line x1="{x:.0f}" y1="{y:.0f}" x2="{x:.0f}" y2="{y - r * .6:.0f}" stroke="{INK}" stroke-width="{r * .1:.1f}"/><line x1="{x:.0f}" y1="{y:.0f}" x2="{x + r * .45:.0f}" y2="{y + r * .2:.0f}" stroke="{INK}" stroke-width="{r * .1:.1f}"/>')
+
+
+def radio_table(pic, X, Z):
+    pic.box(X - 0.5, X + 0.5, 0.72, 0.78, Z - 0.35, Z + 0.35, WOOD, top="#94693e")
+    for dx in (-0.45, 0.42):
+        for dz in (-0.3, 0.27):
+            pic.box(X + dx, X + dx + 0.05, 0, 0.72, Z + dz, Z + dz + 0.05, shade(WOOD, .8))
+    pic.box(X - 0.28, X + 0.12, 0.78, 1.02, Z - 0.15, Z + 0.1, "#4a5a3a", top="#5c6c4a")
+    x, y, d = pic.cam.p(X - 0.12, 0.9, Z + 0.11); r = 0.05 * pic.cam.f / d
+    pic.raw(d - 0.05, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="#d8c890" stroke="{INK}" stroke-width="{max(.6, r * .15):.1f}"/>')
+    a, b = pic.cam.p(X + 0.08, 1.02, Z), pic.cam.p(X + 0.3, 1.5, Z - 0.05)
+    pic.raw(a[2] - 0.05, f'<line x1="{a[0]:.0f}" y1="{a[1]:.0f}" x2="{b[0]:.0f}" y2="{b[1]:.0f}" stroke="#222" stroke-width="{max(1, 6 / a[2]):.1f}"/>')
+    pic.jar(X + 0.3, 0.78, Z, 0.05, 0.12, "#e8e4d8", lid="#e8e4d8", label="#c0392b")
+    pic.box(X - 0.45, X - 0.3, 0.78, 0.8, Z - 0.1, Z + 0.15, "#f2ecdc")
+
+
+def sag(pic, a3, b3, col="#151210", w=4, drop=0.18, depth=None):
+    a, b = pic.cam.p(*a3), pic.cam.p(*b3); m = pic.cam.p((a3[0] + b3[0]) / 2, (a3[1] + b3[1]) / 2 - drop, (a3[2] + b3[2]) / 2)
+    pic.raw(depth if depth is not None else max(a[2], b[2]) - 0.05, f'<path d="M{a[0]:.0f} {a[1]:.0f} Q{2 * m[0] - (a[0] + b[0]) / 2:.0f} {2 * m[1] - (a[1] + b[1]) / 2:.0f} {b[0]:.0f} {b[1]:.0f}" fill="none" stroke="{col}" stroke-width="{max(1.2, w * 3 / m[2]):.1f}"/>')
+
+
+def bunker_details(pic):
+    """Обжитость бункера: мешки, вода, ящики с надписями, календарь с крестиками, часы, стол с рацией, коврик, провода."""
+    for k, (x, lab, col) in enumerate(((1.75, "МУКА", "#e0d4b4"), (2.3, "РИС", "#d8ccb0"), (2.85, "САХАР", "#e8e0cc"))):
+        sack(pic, x, -3.6, lab, col)
+    water_pack(pic, -0.15, -3.75, n=2, rows=2)
+    crate_text(pic, 1.8, 2.22, 0, 0.34, -4.35, -3.95, "ТУШЁНКА")
+    crate_text(pic, 2.25, 2.67, 0, 0.34, -4.35, -3.95, "ГРЕЧКА")
+    crate_text(pic, 2.0, 2.42, 0.34, 0.68, -4.35, -3.95, "ИРП")
+    calendar(pic, 0.15, 2.05, -4.39)
+    wall_clock(pic, 0.15, 2.45, -4.39)
+    radio_table(pic, 2.55, -1.0)
+    x0, x1, z0, z1 = -1.4, 0.6, -2.4, -0.8
+    pic.poly([(x0, 0.005, z1), (x1, 0.005, z1), (x1, 0.005, z0), (x0, 0.005, z0)], "#7a3a2a", depth=96)
+    pic.poly([(x0 + 0.12, 0.006, z1 - 0.12), (x1 - 0.12, 0.006, z1 - 0.12), (x1 - 0.12, 0.006, z0 + 0.12), (x0 + 0.12, 0.006, z0 + 0.12)], "#9a5a3a", depth=95.9)
+    for k in range(4):
+        sag(pic, (-3.1 + k * 1.5, 2.6, -4.38), (-1.6 + k * 1.5, 2.6, -4.38), drop=0.12)
+    sag(pic, (2.9, 2.5, -4.38), (3.15, 1.0, -1.0), col="#2a2a2a", drop=0.3)
+    ftext(pic, -1.6, 2.35, -4.38, "ГРАФИК ДЕЖУРСТВ", 0.07, "#e8e2d0")
+
+
 def hanging_lamp(pic, X, Y, Z, color="#ffcf8a"):
     a, b = pic.cam.p(X, Y + 0.45, Z), pic.cam.p(X, Y, Z)
     pic.raw(b[2] - 0.05, f'<line x1="{a[0]:.0f}" y1="{a[1]:.0f}" x2="{b[0]:.0f}" y2="{b[1]:.0f}" stroke="#1c1916" stroke-width="{3 / b[2] * 1.5:.1f}"/>')
@@ -315,6 +398,7 @@ def bunker(cam, hatch_open=False, torch=False, red=False):
         pic.jar(x0, 0, 0.9, 0.16, 0.32, "#8c949c", lid="#5c636a", label="#8c949c")
     for z in [1.8 - k * 0.25 for k in range(26)]:                                  # труба по правой стене
         pic.box(3.05, 3.15, 2.45, 2.55, z - 0.25, z, "#7a6a5a", top="#8a7a6a")
+    bunker_details(pic)
     hanging_lamp(pic, -0.4, 2.35, -1.6)
     if torch:
         x, y, d = cam.p(hx + 0.1, Hc + 0.6, hz + 0.1)
@@ -379,6 +463,13 @@ def market(cam):
     for k in range(14):                                                            # гирлянда
         x = -1.5 + k * 3.0 / 13; yy = 2.28 - 0.08 * math.sin(k / 13 * math.pi)
         q = cam.p(x, yy, -0.92); pic.raw(q[2] - 0.2, f'<circle cx="{q[0]:.0f}" cy="{q[1]:.0f}" r="{7 / q[2] * 1.6:.1f}" fill="#ffd070"/>'); pic.glow(x, yy, -0.92, 0.25, "#ffc860", 0.5)
+    pic.box(0.6, 1.0, 1.0, 1.08, -1.6, -1.35, "#c8ccd0", top="#e0e4e8")
+    pic.box(0.7, 0.9, 1.08, 1.3, -1.5, -1.45, "#c0392b")
+    for k, (x, txt) in enumerate(((-0.9, "45₽"), (-0.32, "60₽"), (0.26, "80₽"), (0.84, "35₽"))):
+        pic.box(x - 0.12, x + 0.12, 1.05, 1.2, -1.34, -1.33, "#d8c090")
+        ftext(pic, x, 1.09, -1.32, txt, 0.08, "#2a1a0c")
+    for k in range(3):
+        sack(pic, -2.0 + k * 0.55, -1.0, ("КАРТОШКА", "ЛУК", "МОРКОВЬ")[k], "#c8a878", w=0.45, h=0.6)
     lx, ly, d = cam.p(-3.5, 3.4, -3.0)
     pic.box(-3.55, -3.45, 0, 3.4, -3.05, -2.95, "#2a2a2e")
     pic.glow(-3.5, 3.4, -3.0, 2.6, "#ffcf8a", 0.65)
@@ -438,10 +529,21 @@ def pharmacy(cam):
     for (x0, x1, y0, y1) in ((-0.25, 0.25, 2.65, 2.8), (-0.075, 0.075, 2.48, 2.97)):
         pic.box(x0, x1, y0, y1, -3.98, -3.94, "#2ab060", stroke=False)
     pic.glow(0, 2.72, -3.9, 1.0, "#3aff8a", 0.5)
+    for x0, col, txt in ((-2.7, "#e8f0f4", "ВИТАМИНЫ"), (2.0, "#fdf0e0", "СКИДКИ")):
+        pic.box(x0, x0 + 0.7, 1.6, 2.5, -3.99, -3.97, col)
+        ftext(pic, x0 + 0.35, 2.3, -3.96, txt, 0.08, "#2c6aa0")
+        x, y, d = cam.p(x0 + 0.35, 1.95, -3.96); r = 0.18 * cam.f / d
+        pic.raw(d - 0.05, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="#f0a030" stroke="{INK}" stroke-width="2"/>')
+    pic.jar(-2.4, 0, -1.6, 0.18, 0.35, "#8a5a3a", lid="#6a4a2a", label="#8a5a3a")
+    for k in range(7):
+        x, y, d = cam.p(-2.4 + 0.25 * math.cos(k), 0.75 + 0.25 * math.sin(k * 1.7), -1.6); r = 0.16 * cam.f / d
+        pic.raw(d - 0.3, f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{r * .5:.0f}" ry="{r:.0f}" transform="rotate({k * 50} {x:.0f} {y:.0f})" fill="#4a8a4a" stroke="{INK}" stroke-width="1.5"/>')
+    pic.box(-1.6, -1.55, 0, 1.0, -1.2, -1.15, "#c8a040"); pic.box(-0.6, -0.55, 0, 1.0, -1.2, -1.15, "#c8a040")
+    pic.box(-1.6, -0.55, 0.92, 0.96, -1.19, -1.16, "#b8321e")
     return pic
 
 
-def techroom(cam, red=False):
+def techroom(cam, red=False, t=0.0, fx=None):
     """Техкомната: скважина с насосом, ФВУ с ручкой, генератор, бак солярки, трубы, лампа."""
     pic = Pic(cam, [(0.0, 2.4, -1.2, 4.0, "#ffbe70")], base=0.32)
     Wl, Wr, Hc, Zb, Zf = -3.0, 3.0, 2.6, -3.0, 2.0
@@ -470,7 +572,45 @@ def techroom(cam, red=False):
     pic.box(1.75, 1.85, 0.75, 2.6, -2.7, -2.6, "#4a4a4e")
     pic.box(2.2, 2.9, 0, 1.2, -2.95, -1.6, "#4a6a3a", top="#5c7c4a")
     pic.box(2.18, 2.2, 0.5, 0.75, -2.3, -2.0, "#e8e4d8")
+    water_pack(pic, -2.7, -2.1, n=2, rows=3)
+    x, y, d = cam.p(-1.8, 1.65, -2.35); r = 0.08 * cam.f / d
+    pic.raw(d - 0.3, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="#f4f0e4" stroke="{INK}" stroke-width="{r * .15:.1f}"/><line x1="{x:.0f}" y1="{y:.0f}" x2="{x + r * .6:.0f}" y2="{y - r * .4:.0f}" stroke="#c0302a" stroke-width="{r * .12:.1f}"/>')
+    pic.box(0.7, 1.1, 1.3, 1.9, -2.99, -2.93, "#8a9198", top="#9aa1a8")
+    for k in range(3):
+        pic.box(0.76 + k * 0.12, 0.84 + k * 0.12, 1.55, 1.7, -2.93, -2.92, "#2a2a2e")
+    sag(pic, (1.8, 0.6, -2.29), (0.9, 1.3, -2.93), col="#1a1a1a", drop=0.25)
+    sag(pic, (0.9, 1.9, -2.95), (0.0, 2.55, -1.2), col="#1a1a1a", drop=0.2)
+    for x0, col in ((-2.85, "#a8321e"), (-2.55, "#a8321e")):
+        pic.box(x0, x0 + 0.24, 0, 0.42, -0.4, -0.25, col, top=shade(col, 1.2))
+    pic.box(2.85, 2.98, 0.6, 1.1, -0.9, -0.75, "#a8281e", top="#c03a2a")
+    pic.box(-2.99, -2.6, 1.4, 1.43, -1.6, -0.6, WOOD, top="#94693e")
+    for k, col in enumerate(("#555c64", "#c8a03a", "#3a5a8a", "#a83a2a")):
+        pic.box(-2.9, -2.7, 1.43, 1.43 + 0.1 + 0.05 * k, -1.5 + k * 0.22, -1.38 + k * 0.22, col)
     hanging_lamp(pic, 0.0, 2.2, -1.2)
+    fx = fx or {}
+    if fx.get("water", 0) > 0:
+        a = fx["water"]
+        for k in range(3):
+            ph = (t * 1.6 + k / 3) % 1.0
+            x, y, d = cam.p(-0.95, 2.05 - ph * 1.25, -2.4); r = 0.04 * cam.f / d
+            pic.raw(d - 0.4, f'<path d="M{x:.0f} {y - r * 1.6:.0f} Q{x + r:.0f} {y:.0f} {x:.0f} {y + r:.0f} Q{x - r:.0f} {y:.0f} {x:.0f} {y - r * 1.6:.0f} Z" fill="#7ac8f0" stroke="{INK}" stroke-width="{max(.6, r * .15):.1f}" opacity="{a:.2f}"/>')
+        x, y, d = cam.p(-0.95, 0.76, -2.4); pic.raw(d - 0.35, f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{0.12 * cam.f / d * a:.0f}" ry="{0.03 * cam.f / d * a:.0f}" fill="none" stroke="#7ac8f0" stroke-width="3"/>')
+    if fx.get("air", 0) > 0:
+        a = fx["air"]
+        for k in range(5):
+            ph = (t * 0.9 + k / 5) % 1.0
+            x0, y0, d = cam.p(0.0, 2.45 - k * 0.08, -2.5); r = (0.3 + ph * 1.4) * cam.f / d
+            pic.top.append(f'<path d="M{x0 + r * 0.2:.0f} {y0 + r * .1:.0f} q{r * .5:.0f} {-r * .25:.0f} {r:.0f} 0 t{r * .6:.0f} {r * .1:.0f}" fill="none" stroke="#e8f4ff" stroke-width="5" stroke-linecap="round" opacity="{a * (1 - ph) * .8:.2f}"/>')
+        x, y, d = cam.p(0.0, 0.85, -2.39); r = 0.2 * cam.f / d; ang = t * 600
+        pic.raw(d - 0.4, f'<g transform="rotate({ang:.0f} {x:.0f} {y:.0f})">' + "".join(f'<ellipse cx="{x:.0f}" cy="{y - r * .5:.0f}" rx="{r * .22:.0f}" ry="{r * .5:.0f}" transform="rotate({k * 120} {x:.0f} {y:.0f})" fill="#b8c0c8" stroke="{INK}" stroke-width="2"/>' for k in range(3)) + f'</g><circle cx="{x:.0f}" cy="{y:.0f}" r="{r * .15:.0f}" fill="#3a3e44"/>')
+    if fx.get("light", 0) > 0:
+        a = fx["light"]
+        for k in range(4):
+            ph = (t * 0.7 + k / 4) % 1.0
+            x, y, d = cam.p(1.8 + ph * 0.3, 2.6 + ph * 0.6, -2.65); r = (0.1 + ph * 0.35) * cam.f / d
+            pic.top.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="#8a8a8a" opacity="{a * (1 - ph) * .5:.2f}"/>')
+        pic.glow(0.0, 2.1, -1.2, 2.2, "#ffd890", 0.35 * a + 0.12 * a * math.sin(t * 40))
+        pic.glow(1.65, 0.4, -2.28, 0.6, "#7aff8a", 0.5 * a)
     return pic
 
 

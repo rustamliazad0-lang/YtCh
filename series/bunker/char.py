@@ -539,6 +539,12 @@ def person(name="hero", view="front", face="neutral", phase=None, arms="down", b
                   + "".join(f'<line x1="{hx - 60}" y1="{hy - 50 + j * 16}" x2="{hx + 14}" y2="{hy - 50 + j * 16}" stroke="#7a8aa0" stroke-width="2"/>' for j in range(6))
                   + f'<rect x="{hx - 74}" y="{hy - 74}" width="104" height="14" rx="3" fill="#a83a2a" stroke="{INK}" stroke-width="{FINE}"/></g>'
                   + f'<ellipse cx="{hx + 10}" cy="{hy + 6}" rx="20" ry="22" fill="{L["hands"]}" stroke="{INK}" stroke-width="{SW}"/>')
+        if prop == "bag1":
+            hx, hy = hands[1]
+            s += bag(hx, hy + 6)
+        if prop == "box1":
+            hx, hy = hands[1]
+            s += f'<rect x="{hx - 40}" y="{hy - 30}" width="80" height="56" rx="4" fill="#f4f4f0" stroke="{INK}" stroke-width="{SW}"/><rect x="{hx - 10}" y="{hy - 22}" width="20" height="40" fill="#2ab060"/><rect x="{hx - 20}" y="{hy - 12}" width="40" height="20" fill="#2ab060"/>'
         if prop == "money":
             hx, hy = hands[1]
             s += f'<rect x="{hx - 10}" y="{hy - 46}" width="70" height="36" rx="3" transform="rotate(-20 {hx} {hy})" fill="#9ac08a" stroke="{INK}" stroke-width="{FINE}"/><ellipse cx="{hx}" cy="{hy}" rx="20" ry="22" fill="{L["hands"]}" stroke="{INK}" stroke-width="{SW}"/>'
@@ -579,6 +585,8 @@ def person(name="hero", view="front", face="neutral", phase=None, arms="down", b
         if arms in ("hold", "push"):
             tgt = (290, -548 + body_dy) if arms == "push" else (120, -580 + body_dy)
             armFar = ik((shS[0] + 10, shS[1]), (tgt[0] + 12, tgt[1] - 4), 178, 170, -1); armNear = ik(shS, tgt, 178, 170, -1)
+        elif arms == "take":
+            armFar = fk((shS[0] + 10, shS[1]), 0.05, 178, 0.2, 170); armNear = ik(shS, (110, -1060 + body_dy * 0.3), 178, 170, 1)
         elif arms == "knees":
             armFar = ik((shS[0] + 10, shS[1]), (170 + hx * 0, -300), 178, 170, -1); armNear = ik(shS, (160, -296), 178, 170, -1)
         elif arms == "money":

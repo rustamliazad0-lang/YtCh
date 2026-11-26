@@ -157,6 +157,92 @@ def label_place(t, t0, t1, text):
     return pill(t, t0, t1, text, "y", 1)
 
 
+# ---------- иконки-карточки по смыслу (вода, воздух, свет, еда) ----------
+def word_time(i, prefix, nth=0):
+    """Абсолютное время слова в озвучке (по субтитрам сцены i)."""
+    n = 0
+    for c in al["caps"][i]:
+        ws = c["w"]
+        for k, (w, _) in enumerate(ws):
+            if w.lower().startswith(prefix.lower()):
+                if n == nth:
+                    return T0[i] + c["t0"] + (c["t1"] - c["t0"]) * k / max(1, len(ws))
+                n += 1
+    return T0[i] + D[i] * 0.5
+
+
+def icon(kind, t):
+    K = "#14110f"
+    if kind == "drop":
+        y = -20 + (t * 110) % 90
+        return (f'<rect x="-80" y="-70" width="90" height="24" rx="6" fill="#9aa3ac" stroke="{K}" stroke-width="5"/><rect x="-6" y="-70" width="26" height="46" rx="5" fill="#9aa3ac" stroke="{K}" stroke-width="5"/>'
+                f'<rect x="-40" y="-92" width="34" height="22" rx="4" fill="#c0392b" stroke="{K}" stroke-width="5"/>'
+                f'<path d="M7 {y - 24} Q27 {y + 4} 7 {y + 14} Q-13 {y + 4} 7 {y - 24} Z" fill="#5ab8f0" stroke="{K}" stroke-width="5"/>'
+                f'<ellipse cx="7" cy="82" rx="46" ry="10" fill="#5ab8f0" opacity=".6"/>')
+    if kind == "bottle":
+        return (f'<path d="M-46 -40 Q-46 -62 -24 -66 L-14 -82 L14 -82 L24 -66 Q46 -62 46 -40 L46 74 Q46 88 32 88 L-32 88 Q-46 88 -46 74 Z" fill="#bfe4f4" stroke="{K}" stroke-width="5"/>'
+                f'<path d="M-44 -6 Q-22 -16 0 -6 Q22 4 44 -6 L44 74 Q44 86 32 86 L-32 86 Q-44 86 -44 74 Z" fill="#5ab8f0"/>'
+                f'<rect x="-16" y="-96" width="32" height="18" rx="4" fill="#2c6aa0" stroke="{K}" stroke-width="5"/><rect x="-30" y="20" width="60" height="34" fill="#fff" stroke="{K}" stroke-width="3"/>'
+                f'<text x="0" y="46" text-anchor="middle" font-family="Inter" font-weight="900" font-size="24" fill="#2c6aa0">5 Л</text>')
+    if kind == "fan":
+        a = t * 500
+        return (f'<circle r="82" fill="#dfe6ea" stroke="{K}" stroke-width="6"/><g transform="rotate({a:.0f})">'
+                + "".join(f'<path d="M0 0 Q-30 -40 0 -72 Q24 -40 0 0 Z" transform="rotate({k * 120})" fill="#8a9aa8" stroke="{K}" stroke-width="4"/>' for k in range(3))
+                + f'</g><circle r="12" fill="#3a3e44"/>' + "".join(f'<path d="M95 {y} q20 -10 40 0 t40 0" fill="none" stroke="#5ab8f0" stroke-width="6" stroke-linecap="round" opacity="{0.4 + 0.6 * ((t * 3 + k) % 1):.2f}"/>' for k, y in enumerate((-30, 0, 30))))
+    if kind == "bulb":
+        g = 0.7 + 0.3 * math.sin(t * 12)
+        return (f'<circle r="{95 * g:.0f}" fill="#ffe680" opacity=".35"/><path d="M-50 -10 A55 55 0 1 1 50 -10 Q34 18 28 40 L-28 40 Q-34 18 -50 -10 Z" fill="#ffd84a" stroke="{K}" stroke-width="5"/>'
+                f'<rect x="-28" y="40" width="56" height="34" rx="6" fill="#9aa3ac" stroke="{K}" stroke-width="5"/><path d="M-14 30 L-6 -10 L6 -10 L14 30" fill="none" stroke="#c87a1a" stroke-width="4"/>')
+    if kind == "gen":
+        return (f'<rect x="-80" y="-50" width="160" height="110" rx="10" fill="#e0b040" stroke="{K}" stroke-width="5"/><rect x="-60" y="-30" width="70" height="60" fill="#2a2a2e" stroke="{K}" stroke-width="4"/>'
+                f'<path d="M40 -32 L22 6 L40 6 L28 40 L60 -4 L42 -4 L54 -32 Z" fill="#fff6a0" stroke="{K}" stroke-width="4"/><rect x="40" y="-80" width="16" height="30" fill="#4a4a4e" stroke="{K}" stroke-width="4"/>'
+                + f'<circle cx="{48 + 10 * ((t * 2) % 1):.0f}" cy="{-92 - 30 * ((t * 2) % 1):.0f}" r="{10 + 14 * ((t * 2) % 1):.0f}" fill="#9a9a9a" opacity="{1 - (t * 2) % 1:.2f}"/>')
+    if kind == "can":
+        return (f'<rect x="-56" y="-60" width="112" height="124" fill="#b8c0c8" stroke="{K}" stroke-width="5"/><ellipse cy="-60" rx="56" ry="16" fill="#d8dee4" stroke="{K}" stroke-width="5"/>'
+                f'<path d="M-56 64 A56 16 0 0 0 56 64" fill="none" stroke="{K}" stroke-width="5"/><rect x="-56" y="-30" width="112" height="64" fill="#c0392b" stroke="{K}" stroke-width="4"/>'
+                f'<text x="0" y="10" text-anchor="middle" font-family="Inter" font-weight="900" font-size="22" fill="#fff">ТУШЁНКА</text>')
+    if kind == "mre":
+        return (f'<path d="M-62 -70 L62 -70 L68 80 L-68 80 Z" fill="#6a7a3a" stroke="{K}" stroke-width="5" stroke-linejoin="round"/>'
+                + "".join(f'<line x1="-62" y1="{-62 + k * 6}" x2="62" y2="{-62 + k * 6}" stroke="#4a5a2a" stroke-width="2"/>' for k in range(3))
+                + f'<text x="0" y="22" text-anchor="middle" font-family="Inter" font-weight="900" font-size="54" fill="#f2ecd0">ИРП</text><text x="0" y="56" text-anchor="middle" font-family="Inter" font-weight="700" font-size="18" fill="#f2ecd0">СУТОЧНЫЙ</text>')
+    if kind == "meal":
+        st = "".join(f'<path d="M{x} -30 q-12 -20 0 -40 t0 -40" fill="none" stroke="#e8e8e8" stroke-width="5" stroke-linecap="round" opacity="{0.4 + 0.5 * math.sin(t * 4 + x):.2f}"/>' for x in (-26, 0, 26))
+        return (st + f'<path d="M-80 -10 L80 -10 Q76 60 0 66 Q-76 60 -80 -10 Z" fill="#e8dcc4" stroke="{K}" stroke-width="5"/><ellipse cy="-10" rx="80" ry="16" fill="#c87a3a" stroke="{K}" stroke-width="5"/>'
+                f'<circle cx="-24" cy="-14" r="8" fill="#7a9a3a"/><circle cx="18" cy="-12" r="9" fill="#a8322a"/>')
+    if kind == "jar":
+        return (f'<rect x="-46" y="-56" width="92" height="132" rx="16" fill="#7a9a3a" stroke="{K}" stroke-width="5"/>'
+                + "".join(f'<ellipse cx="{x}" cy="14" rx="12" ry="44" fill="#a8c45a" stroke="#5a7a2a" stroke-width="3"/>' for x in (-22, 0, 22))
+                + f'<rect x="-50" y="-78" width="100" height="26" rx="6" fill="#e8e4d8" stroke="{K}" stroke-width="5"/>')
+    return ""
+
+
+def card(t, t0, t1, kind, x, y, s=1.0, badge=None):
+    if not (t0 <= t < t1):
+        return ""
+    sc, op = pop(t, t0, 0.22)
+    out = min(1.0, (t1 - t) / 0.2)
+    b = ""
+    if badge:
+        b = (f'<g transform="translate(70 -96)"><rect x="-56" y="-26" width="112" height="52" rx="26" fill="#d8362b" stroke="#14110f" stroke-width="4"/>'
+             f'<text x="0" y="12" text-anchor="middle" font-family="Inter" font-weight="900" font-size="30" fill="#fff">{badge}</text></g>')
+    return (f'<g opacity="{op * out:.2f}" transform="translate({x} {y}) scale({sc * s:.3f})"><rect x="-120" y="-120" width="240" height="240" rx="34" fill="#000" opacity=".25" transform="translate(8 10)"/>'
+            f'<rect x="-120" y="-120" width="240" height="240" rx="34" fill="#f6f1e6" stroke="#14110f" stroke-width="6"/><g transform="scale(.95)">{icon(kind, t)}</g>{b}</g>')
+
+
+def whip(svg, t):
+    """Резкий панорамный переход между магазинами: смаз по горизонтали."""
+    a, dirn = 0.0, 1
+    for b in WHIPS:
+        d = t - b
+        if -0.13 < d < 0.13:
+            a = 1 - abs(d) / 0.13; dirn = -1 if d < 0 else 1
+    if a <= 0:
+        return svg
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920"><defs><filter id="wb" x="-30%" y="0" width="160%" height="100%">'
+            f'<feGaussianBlur stdDeviation="{70 * a:.0f} 0"/></filter></defs><rect width="1080" height="1920" fill="#111"/><g filter="url(#wb)" transform="translate({-dirn * 260 * a:.0f} 0)">{svg}</g></svg>')
+
+
+
 # ---------- сцены ----------
 def S(i, f):
     return T0[i] + f * D[i]
@@ -180,6 +266,7 @@ def knock_env(t):
     return e
 
 
+WHIPS = []
 KNOCKS = [S(0, 0.04) + k * 0.2 for k in range(3)] + [S(0, 0.58) + k * 0.2 for k in range(3)]
 
 
@@ -201,7 +288,9 @@ def frame(t):
         if e > 0:
             x, y, _ = c.p(HX, 2.8, HZ)
             ov += f'<text x="{x + 60:.0f}" y="{y + 40:.0f}" font-family="{FONT}" font-weight="900" font-size="{70 + 30 * e:.0f}" fill="#ffffff" stroke="#0d0b0a" stroke-width="10" paint-order="stroke" transform="rotate(-8 {x:.0f} {y:.0f})">ТУК!</text>'
+        tp = word_time(0, "порций"); tl = word_time(0, "люк")
         ov += pill(t, S(0, .08), S(0, 1), "ЕДА: ≈11 000 ПОРЦИЙ", "w", 0) + pill(t, S(0, .35), S(0, 1), "5 ЧЕЛОВЕК · 2 ГОДА", "y", 1)
+        ov += card(t, tp, tl, "can", 230, 1560, 0.85) + card(t, tp + 0.15, tl, "jar", 540, 1560, 0.85) + card(t, tp + 0.3, tl, "mre", 850, 1560, 0.85)
         return p.svg(overlay=ov + caption(t), **kw)
 
     if i == 1:  # сообщение от друга год назад
@@ -212,36 +301,50 @@ def frame(t):
         return (f'<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920"><defs><filter id="pb"><feGaussianBlur stdDeviation="10"/></filter></defs>'
                 f'<g filter="url(#pb)">{bg}</g><rect width="1080" height="1920" fill="#000" opacity=".35"/>{ph}{caption(t)}</svg>')
 
-    if i == 2:  # у люка считает -> рынок -> супермаркет -> аптека
-        if u < 0.22:
-            w = u / 0.22
-            c = cam(*kv([(0, (-0.6, 1.25, 0.6, 0, .05, 760)), (1, (-0.3, 1.2, 0.1, 0, .05, 760))], w))
+    if i == 2:  # у люка считает -> рынок -> супермаркет -> аптека (с движением и резкими переходами)
+        if u < 0.2:
+            w = u / 0.2
+            c = cam(*kv([(0, (-0.6, 1.25, 0.6, 0, .05, 760)), (1, (-0.2, 1.2, 0.0, 0, .05, 760))], w))
             p = I.bunker(c); family(p, u, t)
             actor(p, "hero", [(0, 0.3, -1.6)], u, dur, t, faces=[(0, "thinking")], arms="count", prop="notebook")
-            return p.svg(overlay=caption(t), **kw)
-        if u < 0.48:
-            w = (u - 0.22) / 0.26
-            c = cam(*kv([(0, (0.3, 1.15, 1.5, 0, .04, 820)), (1, (0.1, 1.12, 1.2, 0, .04, 820))], w))
+            return whip(p.svg(overlay=caption(t), **kw), t)
+        if u < 0.46:  # рынок: подходит, платит, получает пакет, уходит
+            w = (u - 0.2) / 0.26
+            path = [(0, -2.7, -0.55), (0.3, -0.55, -0.55), (0.62, -0.55, -0.55), (1.0, 1.9, -0.55)]
+            hx_, _, _, _, _ = walk(path, w, 1)
+            c = cam(0.35 * hx_ + 0.15, 1.15, 1.45 - 0.3 * w, 0, .04, 820)
             p = I.market(c); rim = "#ffc890"
-            actor(p, "vendor", [(0, 0.45, -2.0)], w, 1, t, faces=[(0, "happy")], talk=[(0.45, 0.8)], rim=rim, light=(-1, 1), off=1.3)
-            actor(p, "hero", [(0, -1.9, -0.55), (0.5, -0.55, -0.55)], w, 1, t, standview="side", arms="money" if w > 0.55 else "down", rim=rim)
-            ov = label_place(t, S(2, .23), S(2, .48), "РЫНОК")
-            return p.svg(sky="#2c2c4a", particles=("snow", 140), vignette=0.6, grain=0, ptime=t, overlay=ov + caption(t))
-        if u < 0.74:
-            w = (u - 0.48) / 0.26
-            hz = -5.3 + 1.9 * w
-            c = cam(-0.85, 1.15, hz + 0.6 - 0.25 * w, yaw=math.pi / 2, pitch=-0.14, f=700)
+            give = 0.42 <= w < 0.6
+            actor(p, "vendor", [(0, 0.45, -2.0)], w, 1, t, faces=[(0, "happy")], talk=[(0.3, 0.5)], rim=rim, light=(-1, 1), off=1.3,
+                  arms="money" if give else "down", prop="bag1" if give else None)
+            actor(p, "hero", path, w, 1, t, standview="side", arms="money" if 0.32 < w < 0.5 else "down", prop="bags" if w >= 0.58 else None, rim=rim,
+                  faces=[(0, "neutral"), (0.55, "happy")])
+            ov = label_place(t, S(2, .21), S(2, .46), "РЫНОК")
+            return whip(p.svg(sky="#2c2c4a", particles=("snow", 140), vignette=0.6, grain=0, ptime=t, overlay=ov + caption(t)), t)
+        if u < 0.72:  # супермаркет: едет с тележкой, берёт с полки, едет дальше
+            w = (u - 0.46) / 0.26
+            path = [(0, 0.45, -6.0), (0.38, 0.45, -4.9), (0.62, 0.45, -4.9), (1.0, 0.45, -3.3)]
+            _, hz, _, _, _ = walk(path, w, 1)
+            c = cam(-0.85, 1.15, hz + 0.55, yaw=math.pi / 2, pitch=-0.14, f=700)
             p = I.supermarket(c)
-            actor(p, "hero", [(0, 0.45, -5.3), (1, 0.45, -3.4)], w, 1, t, faces=[(0, "serious")], cart=True, rim="#ffffff", light=(-1, 1))
-            ov = label_place(t, S(2, .49), S(2, .74), "СУПЕРМАРКЕТ")
-            return p.svg(sky="#d8d0c0", vignette=0.45, grain=0, overlay=ov + caption(t))
-        w = (u - 0.74) / 0.26
-        c = cam(*kv([(0, (0.3, 1.3, 0.6, 0, -.06, 820)), (1, (0.2, 1.3, 0.3, 0, -.06, 820))], w))
+            if 0.4 < w < 0.6:
+                put(p, C.cart_side(300, 0) + C.person("hero", "side", face="thinking", arms="take", rim="#ffffff", light=(-1, 1), blink=blink(t, 0)), 0.45, hz)
+            else:
+                actor(p, "hero", path, w, 1, t, faces=[(0, "serious")], cart=True, rim="#ffffff", light=(-1, 1))
+            ov = label_place(t, S(2, .47), S(2, .72), "СУПЕРМАРКЕТ")
+            return whip(p.svg(sky="#d8d0c0", vignette=0.45, grain=0, overlay=ov + caption(t)), t)
+        w = (u - 0.72) / 0.28  # аптека: подходит к окошку, получает лекарства, уходит к камере
+        c = cam(*kv([(0, (0.3, 1.3, 0.6, 0, -.06, 820)), (1, (0.15, 1.3, 0.9, 0, -.06, 820))], w))
         p = I.pharmacy(c)
-        actor(p, "pharm", [(0, 0.2, -2.95)], w, 1, t, faces=[(0, "neutral"), (0.6, "happy")], talk=[(0.55, 0.85)], rim="#ffffff", light=(-1, 1), off=2.1)
-        actor(p, "hero", [(0, -0.2, -0.2), (0.55, -0.15, -1.55)], w, 1, t, view="back", standview="back", rim="#ffffff", light=(-1, 1))
-        ov = label_place(t, S(2, .75), S(2, 1), "АПТЕКА")
-        return p.svg(sky="#dfe9e2", vignette=0.55, grain=0, overlay=ov + caption(t))
+        give = 0.36 <= w < 0.56
+        actor(p, "pharm", [(0, 0.2, -2.95)], w, 1, t, faces=[(0, "neutral"), (0.3, "happy")], talk=[(0.3, 0.5)], rim="#ffffff", light=(-1, 1), off=2.1,
+              arms="money" if give else "down", prop="box1" if give else None)
+        if w < 0.6:
+            actor(p, "hero", [(0, -1.2, -0.9), (0.32, -0.15, -1.55)], w, 1, t, view="back", standview="back", rim="#ffffff", light=(-1, 1))
+        else:
+            actor(p, "hero", [(0.6, -0.15, -1.55), (1.0, 0.0, -0.5)], w, 1, t, faces=[(0, "neutral")], prop="bag1", rim="#ffffff", light=(-1, 1))
+        ov = label_place(t, S(2, .73), S(2, 1), "АПТЕКА")
+        return whip(p.svg(sky="#dfe9e2", vignette=0.55, grain=0, overlay=ov + caption(t)), t)
 
     if i == 3:  # пересчёт: идёт вдоль стеллажа, семья встаёт по очереди, потом обратно
         path = [(0, -3.0, -2.55), (0.5, -0.5, -2.55), (0.56, -0.5, -2.55), (1.0, -2.7, -2.55)]
@@ -259,14 +362,30 @@ def frame(t):
               + pill(t, S(3, .78), S(3, 1), "НА 6 — 20 МЕСЯЦЕВ", "r", 1))
         return p.svg(overlay=ov + caption(t), **kw)
 
-    if i == 4:  # техкомната: вода, воздух, свет
-        path = [(0, -2.6, -1.2), (0.22, -1.45, -1.2), (0.38, -1.45, -1.2), (0.52, 0.0, -1.2), (0.64, 0.0, -1.2), (0.78, 1.35, -1.2), (1, 1.35, -1.2)]
-        hx_, _, _, _, _ = walk(path, u, dur)
-        c = cam(hx_ * 0.75 + 0.2, 1.15, 0.6, 0, .05, 760)
-        p = I.techroom(c)
-        actor(p, "hero", path, u, dur, t, faces=[(0, "neutral"), (0.3, "thinking"), (0.85, "relieved")], standview="front")
-        ov = (pill(t, S(4, .26), S(4, 1), "ВОДА — ЕСТЬ", "w", 0) + pill(t, S(4, .55), S(4, 1), "ВОЗДУХ — ЕСТЬ", "w", 1)
-              + pill(t, S(4, .8), S(4, 1), "СВЕТ — ЕСТЬ", "w", 2) + pill(t, S(4, .9), S(4, 1), "−4 МЕСЯЦА ЕДЫ", "r", 3))
+    if i == 4:  # вода (капли из крана, бутыль), воздух (вентилятор ФВУ), свет (генератор, лампа), затем еда у стеллажа
+        tW, tA, tF, tE = word_time(4, "вода"), word_time(4, "воздух"), word_time(4, "четыре"), word_time(4, "пережить")
+        tL = tA + 0.55 * (tF - tA)
+        U = lambda tt: (tt - T0[4]) / D[4]
+        if t < tF - 0.15:
+            path = [(0, -2.6, -1.2), (U(tW) - 0.02, -1.45, -1.2), (U(tW) + 0.05, -1.45, -1.2), (U(tA) - 0.02, 0.0, -1.2), (U(tA) + 0.04, 0.0, -1.2), (U(tL) - 0.02, 1.3, -1.2), (1, 1.3, -1.2)]
+            hx_, _, _, _, _ = walk(path, u, dur)
+            c = cam(hx_ * 0.75 + 0.2, 1.15, 0.6, 0, .05, 760)
+            fx = {"water": ss((t - tW + 0.3) / 0.3), "air": ss((t - tA + 0.3) / 0.3), "light": ss((t - tL + 0.2) / 0.3)}
+            p = I.techroom(c, t=t, fx=fx)
+            actor(p, "hero", path, u, dur, t, faces=[(0, "neutral"), (U(tW), "thinking"), (U(tL), "relieved")], standview="front")
+            ov = (pill(t, tW, S(4, 1), "ВОДА — ЕСТЬ", "w", 0) + pill(t, tA, S(4, 1), "ВОЗДУХ — ЕСТЬ", "w", 1) + pill(t, tL, S(4, 1), "СВЕТ — ЕСТЬ", "w", 2)
+                  + card(t, tW, tA, "drop", 330, 1560) + card(t, tW + 0.15, tA, "bottle", 750, 1560)
+                  + card(t, tA, tL, "fan", 540, 1560, 1.1)
+                  + card(t, tL, tF, "bulb", 330, 1560) + card(t, tL + 0.15, tF, "gen", 750, 1560))
+            return p.svg(overlay=ov + caption(t), **kw)
+        w = (t - tF) / max(0.5, S(4, 1) - tF)
+        c = cam(*kv([(0, (-1.0, 1.25, -0.3, 0, .05, 760)), (1, (-1.1, 1.22, -0.7, 0, .05, 760))], w))
+        p = I.bunker(c)
+        family(p, u, t, stand_at=(-9, -9, -9, -9))
+        actor(p, "hero", [(0, -0.35, -2.55)], w, 1, t, faces=[(0, "worried"), ((tE - tF) / max(0.5, S(4, 1) - tF), "relieved")])
+        ov = (pill(t, tF, S(4, 1), "−4 МЕСЯЦА ЕДЫ", "r", 0)
+              + card(t, tF + 0.05, S(4, 1) + 0.01, "can", 230, 1560, 0.9, "−") + card(t, tF + 0.2, S(4, 1) + 0.01, "mre", 540, 1560, 0.9, "−")
+              + card(t, tF + 0.35, S(4, 1) + 0.01, "meal", 850, 1560, 0.9, "−"))
         return p.svg(overlay=ov + caption(t), **kw)
 
     if i == 5:  # открывает: лезет по лестнице, люк открывается, красный свет
@@ -350,20 +469,41 @@ def up_view(t, appear, f=1000):
 
 
 def phone_svg(t, u):
-    s = ('<g stroke="#14110f" stroke-width="10" stroke-linejoin="round" transform="translate(90 300)">'
-         '<path d="M-40 1400 L120 1000 L300 1060 L230 1400 Z" fill="#6d8173"/><path d="M940 1400 L780 1000 L600 1060 L670 1400 Z" fill="#6d8173"/>'
-         '<rect x="190" y="150" width="520" height="980" rx="60" fill="#15181d"/><rect x="225" y="215" width="450" height="860" rx="24" fill="#1d2633"/>'
-         '<ellipse cx="205" cy="980" rx="95" ry="120" fill="#2b2b2b"/><ellipse cx="695" cy="980" rx="95" ry="120" fill="#2b2b2b"/></g>')
-    s += f'<text x="540" y="590" text-anchor="middle" font-family="{FONT}" font-weight="700" font-size="34" fill="#9fb0c4">Друг · год назад</text>'
+    """Вид от первого лица: две руки держат телефон, большие пальцы на экране, рукава парки."""
+    K = "#14110f"; SK = "#ecdcc0"; SL = "#6d8173"
+    sway = 6 * math.sin(t * 1.6)
+    hand = ""
+    for sg in (-1, 1):
+        X = (lambda x: x) if sg < 0 else (lambda x: 1080 - x)
+        hand += (f'<path d="M{X(60)} 2000 L{X(250)} 1560" stroke="{K}" stroke-width="222" stroke-linecap="round"/><path d="M{X(60)} 2000 L{X(250)} 1560" stroke="{SL}" stroke-width="210" stroke-linecap="round"/>'
+                 f'<path d="M{X(170)} 1640 L{X(320)} 1520" stroke="{K}" stroke-width="2" opacity=".0"/>'
+                 f'<path d="M{X(150)} 1700 Q{X(250)} 1660 {X(350)} 1640" fill="none" stroke="{K}" stroke-width="4" opacity=".6"/>')
+        # ладонь за телефоном и пальцы по внешнему краю
+        hand += (f'<path d="M{X(330)} 1200 Q{X(205)} 1190 {X(196)} 1320 Q{X(190)} 1460 {X(250)} 1540 L{X(340)} 1560 Z" fill="{SK}" stroke="{K}" stroke-width="6" stroke-linejoin="round"/>'
+                 + "".join(f'<path d="M{X(262)} {y} Q{X(206 - k * 2)} {y - 8} {X(204 - k * 2)} {y + 30} Q{X(206 - k * 2)} {y + 58} {X(262)} {y + 56}" fill="{SK}" stroke="{K}" stroke-width="5"/>' for k, y in enumerate((1070, 1135, 1200, 1265))))
+    ph = (f'<rect x="262" y="380" width="556" height="1110" rx="62" fill="#15181d" stroke="{K}" stroke-width="8"/>'
+          f'<rect x="290" y="420" width="500" height="1030" rx="40" fill="#17212b"/>'
+          f'<rect x="290" y="420" width="500" height="130" rx="40" fill="#22303e"/><rect x="290" y="500" width="500" height="50" fill="#22303e"/>'
+          f'<circle cx="360" cy="485" r="36" fill="#5c6a3e" stroke="#0d1218" stroke-width="3"/><text x="360" y="498" text-anchor="middle" font-family="Inter" font-weight="800" font-size="34" fill="#fff">Д</text>'
+          f'<text x="414" y="476" font-family="Inter" font-weight="800" font-size="34" fill="#fff">Друг</text><text x="414" y="514" font-family="Inter" font-weight="600" font-size="24" fill="#7f91a4">был(а) год назад</text>'
+          f'<rect x="460" y="575" width="160" height="40" rx="20" fill="#2a3a4a"/><text x="540" y="603" text-anchor="middle" font-family="Inter" font-weight="700" font-size="22" fill="#9fb0c4">12 марта</text>')
     y = 650
-    for f0, txt in ((0.25, ["Через год", "начнётся война."]), (0.6, ["Никому."])):
+    for f0, txt, tm in ((0.25, ["Через год", "начнётся война."], "03:12"), (0.6, ["Никому."], "03:12")):
         if u >= f0:
             sc, op = pop(u * D[1], f0 * D[1])
-            h = 40 + 56 * len(txt); w = 380
-            s += (f'<g opacity="{op:.2f}" transform="translate(345 {y}) scale({sc:.3f})"><rect x="0" y="0" width="{w}" height="{h}" rx="26" fill="#2f4a6a"/>'
-                  + "".join(f'<text x="24" y="{62 + 56 * k}" font-family="{FONT}" font-weight="700" font-size="44" fill="#fff">{esc(line)}</text>' for k, line in enumerate(txt)) + "</g>")
-        y += 200
-    return s
+            h = 50 + 56 * len(txt); w = 400 if len(txt) > 1 else 250
+            ph += (f'<g opacity="{op:.2f}" transform="translate(312 {y}) scale({sc:.3f})"><rect x="0" y="0" width="{w}" height="{h}" rx="26" fill="#2b5278"/>'
+                   + "".join(f'<text x="26" y="{62 + 56 * k}" font-family="Inter" font-weight="700" font-size="44" fill="#fff">{esc(line)}</text>' for k, line in enumerate(txt))
+                   + f'<text x="{w - 18}" y="{h - 14}" text-anchor="end" font-family="Inter" font-weight="600" font-size="22" fill="#8fb0d0">{tm}</text></g>')
+        y += 220
+    thumbs = ""
+    for sg in (-1, 1):
+        X = (lambda x: x) if sg < 0 else (lambda x: 1080 - x)
+        thumbs += (f'<path d="M{X(250)} 1520 Q{X(300)} 1420 {X(380)} 1330" fill="none" stroke="{K}" stroke-width="86" stroke-linecap="round"/>'
+                   f'<path d="M{X(250)} 1520 Q{X(300)} 1420 {X(380)} 1330" fill="none" stroke="{SK}" stroke-width="74" stroke-linecap="round"/>'
+                   f'<ellipse cx="{X(376)}" cy="{1338}" rx="20" ry="16" transform="rotate({-40 * -sg} {X(376)} 1338)" fill="#f6e8d4" stroke="{K}" stroke-width="3"/>'
+                   f'<path d="M{X(300)} 1440 q{-sg * -14} 4 {-sg * -22} -6" fill="none" stroke="{K}" stroke-width="3" opacity=".6"/>')
+    return f'<g transform="translate(0 {sway:.1f})">{hand}{ph}{thumbs}</g>'
 
 
 # ---------- звук: глухие удары в люк ----------
@@ -379,6 +519,9 @@ def knocks_wav(path):
     with wave.open(path, "w") as w:
         w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr)
         w.writeframes(b"".join(struct.pack("<h", int(max(-1, min(1, x)) * 30000)) for x in buf))
+
+
+WHIPS[:] = [S(2, .2), S(2, .46), S(2, .72)]
 
 
 def main():
