@@ -47,17 +47,41 @@ def chunks(text):
     return out
 
 
-def plan(v):
+def voice_timing(v, audio):
+    """Длительности сцен под озвучку: границы ставятся на паузы речи (ffmpeg silencedetect)."""
+    T = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", audio],
+                             capture_output=True, text=True).stdout)
+    log = subprocess.run(["ffmpeg", "-hide_banner", "-i", audio, "-af", "silencedetect=noise=-35dB:d=0.15", "-f", "null", "-"],
+                         capture_output=True, text=True).stderr
+    st = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", log)]
+    en = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", log)]
+    mids = [(a + b) / 2 for a, b in zip(st, en)]
+    lens = [len(sc[2]) for sc in v["scenes"]]
+    tot, acc, bounds = sum(lens), 0, [0.0]
+    for L in lens[:-1]:
+        acc += L
+        want = acc / tot * T
+        near = [m for m in mids if abs(m - want) <= 1.5 and m > bounds[-1] + 1.0]
+        bounds.append(min(near, key=lambda m: abs(m - want)) if near else want)
+    bounds.append(T + 0.8)
+    return [round(b - a, 3) for a, b in zip(bounds, bounds[1:])]
+
+
+def plan(v, durs=None):
     scenes, t0, names = [], 0.0, list(CAMS)
     for i, (fn, tm, narr, *_r) in enumerate(v["scenes"]):
         a, b = map(int, re.match(r"(\d+)-(\d+)", tm).groups())
-        d = b - a
+        d = durs[i] if durs else b - a
         cam = names[i % len(names)]
         shots = [{"t0": 0.0, "t1": d, "cam": CAMS[cam]}]
         if d >= 4:
             cut = round(d * 0.55, 2)
             other = CAMS[names[(i + 3) % len(names)]]  # второй план: другой ракурс, а не приближение
             shots = [{"t0": 0.0, "t1": cut, "cam": CAMS[cam]}, {"t0": cut, "t1": d, "cam": other}]
+            if d >= 8:  # длинная сцена: три ракурса, ни один план не дольше ~4 с
+                c1, c2 = round(d * 0.34, 2), round(d * 0.68, 2)
+                third = CAMS[names[(i + 5) % len(names)]]
+                shots = [{"t0": 0.0, "t1": c1, "cam": CAMS[cam]}, {"t0": c1, "t1": c2, "cam": other}, {"t0": c2, "t1": d, "cam": third}]
         cs = chunks(narr)
         lens = [len(c) for c in cs]
         tot, acc, caps = sum(lens), 0.15, []
@@ -169,14 +193,22 @@ def page(scenes):
 
 def render(slug, preview=None):
     v = ALL[slug]
-    scenes = plan(v)
+    voice = os.path.join(OUT, f"voice-{slug}.mp3")
+    has_voice = os.path.exists(voice) and not preview
+    scenes = plan(v, voice_timing(v, voice) if has_voice else None)
     total = scenes[-1]["t0"] + scenes[-1]["d"]
     os.makedirs(OUT, exist_ok=True)
     html = os.path.join(OUT, f"motion-{slug}.html")
     open(html, "w", encoding="utf8").write(page(scenes))
     out = os.path.join(OUT, f"bunker-{slug}{'-preview' if preview else ''}.mp4")
-    subprocess.run(["node", os.path.join(HERE, "motion_render.js"), html, out, str(preview or total)], check=True)
-    print("ok", os.path.basename(out), round(os.path.getsize(out) / 1e6, 1), "МБ")
+    silent = out.replace(".mp4", "-silent.mp4") if has_voice else out
+    subprocess.run(["node", os.path.join(HERE, "motion_render.js"), html, silent, str(preview or total)], check=True)
+    if has_voice:  # голос: громкость -14 LUFS (норма YouTube), AAC 192k, длина по видео
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", silent, "-i", voice, "-map", "0:v", "-map", "1:a", "-c:v", "copy",
+                        "-af", "loudnorm=I=-14:TP=-1.5:LRA=11,apad", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest",
+                        "-movflags", "+faststart", out], check=True)
+        os.remove(silent)
+    print("ok", os.path.basename(out), round(os.path.getsize(out) / 1e6, 1), "МБ", "с голосом" if has_voice else "без голоса")
 
 
 if __name__ == "__main__":
