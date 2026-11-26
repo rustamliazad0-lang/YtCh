@@ -73,16 +73,17 @@ def _body(o, pose):
     # ботинки и штаны
     for sx in (-1, 1):
         x0 = -19 if sx < 0 else 2
+        g += f'<g class="{"lgL" if sx < 0 else "lgR"}">'
         g += f'<path d="M{-16 if sx<0 else 3} -60 L{-2 if sx<0 else 16} -60 L{-3 if sx<0 else 15} -12 L{-16 if sx<0 else 2} -12 Z" {_o(o["pants"], 1.5, sil)}/>'
         if o.get("stripe") and not sil:
             xs = -15 if sx < 0 else 14.5
             g += f'<line x1="{xs}" y1="-58" x2="{xs}" y2="-14" stroke="{o["stripe"]}" stroke-width="1.7"/>'
         g += f'<path d="M{x0} -14 h17 v10 q0 4 -4 4 h-12 q-{3 if sx<0 else 1} 0 -{3 if sx<0 else 1} -3 z" {_o(o["boot"], 1.4, sil)}/>'
-        g += f'<rect x="{x0-1}" y="-3.5" width="19" height="3.5" rx="1.5" fill="{o["sole"]}"/>'
+        g += f'<rect x="{x0-1}" y="-3.5" width="19" height="3.5" rx="1.5" fill="{o["sole"]}"/></g>'
     # руки
     def sleeve_down(sx):
         p = f'M{-24*sx} -108 Q{-34*sx} -100 {-33*sx} -84 L{-32*sx} -66 L{-23*sx} -66 L{-23*sx} -84 Q{-23*sx} -98 {-18*sx} -104 Z'
-        return f'<path d="{p}" {_o(o["top"], 1.5, sil)}/><line x1="{-32.5*sx}" y1="-86" x2="{-23*sx}" y2="-86" stroke="{o["dark"]}" stroke-width="1.2"/><ellipse cx="{-27.5*sx}" cy="-61" rx="5.5" ry="6.5" {_o(o["glove"], 1.3, sil)}/>'
+        return f'<g class="{"amR" if sx > 0 else "amL"}"><path d="{p}" {_o(o["top"], 1.5, sil)}/><line x1="{-32.5*sx}" y1="-86" x2="{-23*sx}" y2="-86" stroke="{o["dark"]}" stroke-width="1.2"/><ellipse cx="{-27.5*sx}" cy="-61" rx="5.5" ry="6.5" {_o(o["glove"], 1.3, sil)}/></g>'
     if pose == "down":
         g += f'<path d="M-21 -104 Q-30 -88 -9 -96" stroke="{INK}" stroke-width="12" fill="none" stroke-linecap="round"/><path d="M-21 -104 Q-30 -88 -9 -96" stroke="{o["top"]}" stroke-width="9" fill="none" stroke-linecap="round"/>'
         g += f'<path d="M21 -104 Q30 -88 25 -98" stroke="{INK}" stroke-width="12" fill="none" stroke-linecap="round"/><path d="M21 -104 Q30 -88 25 -98" stroke="{o["top"]}" stroke-width="9" fill="none" stroke-linecap="round"/>'
@@ -121,7 +122,7 @@ def _body(o, pose):
     return g
 
 
-def person(x, y, who="hero", s=1.0, pack=False, down=False, lie=False, mood="calm", arm_up=False):
+def person(x, y, who="hero", s=1.0, pack=False, down=False, lie=False, mood="calm", arm_up=False, pid=None):
     o = OUTFITS[who]
     s = s * o.get("k", 1.0) * 1.3
     pose = "down" if down else ("arm_up" if arm_up else "stand")
@@ -130,10 +131,11 @@ def person(x, y, who="hero", s=1.0, pack=False, down=False, lie=False, mood="cal
     if pack:
         inner += f'<path d="M-40 -104 h20 v54 h-20 q-4 0 -4 -4 v-46 q0 -4 4 -4 z" {_o("#b8452e", 1.5)}/><rect x="-40" y="-82" width="18" height="4" fill="#7d2a1a"/>'
     inner += _body(o, pose) + _head(o, hx, hy, not down, mood)
+    wrap = (lambda m: f'<g data-a="{pid}">{m}</g>') if pid else (lambda m: m)
     if lie:
-        return f'<g transform="translate({x},{y}) scale({s*0.77:.3f}) translate(75,-28) rotate(-90)">{inner}</g>'
+        return wrap(f'<g transform="translate({x},{y}) scale({s*0.77:.3f}) translate(75,-28) rotate(-90)">{inner}</g>')
     y2 = min(y + 70, 600)
-    return f'<g transform="translate({x},{y2}) scale({s:.3f})">{inner}</g>'
+    return wrap(f'<g transform="translate({x},{y2}) scale({s:.3f})">{inner}</g>')
 
 
 # ---------- окружение ----------

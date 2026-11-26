@@ -14,8 +14,8 @@ import build_storyboard_2 as B2
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "video")
-import build_storyboard_3 as B3
-ALL = {v["slug"]: v for v in B1.VIDEOS + B2.VIDEOS2 + B3.VIDEOS60}  # минутные версии перекрывают старые
+import build_storyboard_4 as B4
+ALL = {v["slug"]: v for v in B1.VIDEOS + B2.VIDEOS2 + B4.VIDEOS60}  # минутные версии с постановкой перекрывают старые
 P = 1500  # перспектива, px
 DEPTH = {"fill": -1100, "bg": -520, "mid": -180, "fg": 0}
 OVERSCAN = {"fill": 1.35, "bg": 1.2, "mid": 0.9, "fg": 1.0}
@@ -48,41 +48,84 @@ def chunks(text):
     return out
 
 
-def voice_timing(v, audio):
-    """Длительности сцен под озвучку: границы ставятся на паузы речи (ffmpeg silencedetect)."""
-    T = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", audio],
-                             capture_output=True, text=True).stdout)
-    log = subprocess.run(["ffmpeg", "-hide_banner", "-i", audio, "-af", "silencedetect=noise=-35dB:d=0.15", "-f", "null", "-"],
-                         capture_output=True, text=True).stderr
-    st = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", log)]
-    en = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", log)]
-    mids = [(a + b) / 2 for a, b in zip(st, en)]
-    lens = [len(sc[2]) for sc in v["scenes"]]
-    tot = sum(lens)
-    cum = [sum(lens[:k]) for k in range(len(lens) + 1)]  # знаки до каждой границы
-    snap = [0.0] + [None] * (len(lens) - 1) + [T]
-    last = 0.0
-    for k in range(1, len(lens)):
-        want = cum[k] / tot * T
-        need = 0.65 * lens[k - 1] / tot * T  # сцена не короче 65% расчётной: паузы внутри фразы не берём
-        near = [m for m in mids if abs(m - want) <= 1.5 and m > last + max(1.0, need)]
-        if near:
-            snap[k] = last = min(near, key=lambda m: abs(m - want))
-    # границы без паузы рядом: делим отрезок между соседними найденными паузами по числу знаков
-    for k in range(1, len(lens)):
-        if snap[k] is None:
-            a = max(j for j in range(k) if snap[j] is not None)
-            b = min(j for j in range(k + 1, len(snap)) if snap[j] is not None)
-            snap[k] = snap[a] + (snap[b] - snap[a]) * (cum[k] - cum[a]) / (cum[b] - cum[a])
-    bounds = snap[:-1] + [T + 0.8]
-    return [round(b - a, 3) for a, b in zip(bounds, bounds[1:])]
+VOW = set("аеёиоуыэюя")
 
 
-def plan(v, durs=None):
+def syl(w):
+    return max(1, sum(ch in VOW for ch in w.lower())) + 0.35
+
+
+def align(v, audio=None):
+    """Время каждого слова. С голосом: слова раскладываются по звучащим участкам записи пропорционально
+    слогам (тишину из silencedetect пропускаем). Без голоса: темп ~0,2 с на слог и паузы на знаках.
+    Возвращает длительности сцен и субтитры (по 1-3 слова) во времени сцены."""
+    words = [(i, w) for i, sc in enumerate(v["scenes"]) for w in sc[2].split()]
+    W = [syl(w) for _, w in words]
+    if audio:
+        T = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", audio],
+                                 capture_output=True, text=True).stdout)
+        log = subprocess.run(["ffmpeg", "-hide_banner", "-i", audio, "-af", "silencedetect=noise=-35dB:d=0.1", "-f", "null", "-"],
+                             capture_output=True, text=True).stderr
+        st_ = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", log)]
+        en_ = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", log)]
+        sil = list(zip(st_, en_ + [T] * (len(st_) - len(en_))))
+        voiced, cur = [], 0.0
+        for a, b in sil:
+            if a > cur + 0.02:
+                voiced.append((cur, a))
+            cur = max(cur, b)
+        if cur < T - 0.02:
+            voiced.append((cur, T))
+        total_v = sum(b - a for a, b in voiced)
+        def at(f):  # доля звучащего времени -> секунды записи
+            need = f * total_v
+            for a, b in voiced:
+                if need <= b - a:
+                    return a + need
+                need -= b - a
+            return voiced[-1][1]
+        tw, acc, st, en = sum(W), 0.0, [], []
+        for w in W:
+            st.append(at(acc / tw)); acc += w; en.append(at(acc / tw) - 0.02)
+        end = T + 0.8
+    else:
+        t, st, en = 0.3, [], []
+        for (_, w), ww in zip(words, W):
+            st.append(t); t += 0.16 * ww; en.append(t)  # 0,16 с на слог: замер по записи A
+            t += 0.38 if re.search(r"[.?!:]$", w) else (0.18 if w.endswith(",") else 0.0)
+        end = t + 0.8
+    first = {}
+    for k, (i, _) in enumerate(words):
+        first.setdefault(i, k)
+    n = len(v["scenes"])
+    bounds = [0.0] + [(en[first[i] - 1] + st[first[i]]) / 2 for i in range(1, n)] + [end]
+    durs = [round(b - a, 3) for a, b in zip(bounds, bounds[1:])]
+    caps = []
+    for i in range(n):
+        ks = [k for k, (j, _) in enumerate(words) if j == i]
+        groups, cur = [], []
+        for k in ks:
+            cur.append(k)
+            if len(cur) == 3 or re.search(r"[.,:?!]$", words[k][1]):
+                groups.append(cur); cur = []
+        if cur:
+            groups.append(cur)
+        cs = []
+        for gi, g in enumerate(groups):
+            t0 = max(0.0, st[g[0]] - 0.04 - bounds[i])
+            t1 = (st[groups[gi + 1][0]] - 0.04 - bounds[i]) if gi + 1 < len(groups) else durs[i] - 0.05
+            ws = [(words[k][1], bool(re.search(r"\d", words[k][1])) or re.sub(r"[^\w]", "", words[k][1].lower()) in KEY) for k in g]
+            cs.append({"t0": round(t0, 3), "t1": round(t1, 3), "w": ws})
+        caps.append(cs)
+    return {"d": durs, "caps": caps}
+
+
+def plan(v, al):
     scenes, t0, names = [], 0.0, list(CAMS)
-    for i, (fn, tm, narr, *_r) in enumerate(v["scenes"]):
-        a, b = map(int, re.match(r"(\d+)-(\d+)", tm).groups())
-        d = durs[i] if durs else b - a
+    for i, sc in enumerate(v["scenes"]):
+        fn, tm, narr = sc[0], sc[1], sc[2]
+        acts = sc[5] if len(sc) > 5 else []
+        d = al["d"][i]
         cam = names[i % len(names)]
         shots = [{"t0": 0.0, "t1": d, "cam": CAMS[cam]}]
         if d >= 4:
@@ -93,13 +136,9 @@ def plan(v, durs=None):
                 c1, c2 = round(d * 0.34, 2), round(d * 0.68, 2)
                 third = CAMS[names[(i + 5) % len(names)]]
                 shots = [{"t0": 0.0, "t1": c1, "cam": CAMS[cam]}, {"t0": c1, "t1": c2, "cam": other}, {"t0": c2, "t1": d, "cam": third}]
-        cs = chunks(narr)
-        lens = [len(c) for c in cs]
-        tot, acc, caps = sum(lens), 0.15, []
-        for c, L in zip(cs, lens):
-            dur = (d - 0.3) * L / tot
-            words = [(w, bool(re.search(r"\d", w)) or re.sub(r"[^\w]", "", w.lower()) in KEY) for w in c.split()]
-            caps.append({"t0": round(acc, 3), "t1": round(acc + dur, 3), "w": words}); acc += dur
+        caps = al["caps"][i]
+        # время действий задано долями сцены, переводим в секунды
+        acts_s = [{**a, "t0": round(a.get("t0", 0) * d, 3), "t1": round(a.get("t1", 1) * d, 3)} for a in acts]
         markup = svg(fn)
         # субтитр уходит наверх, если в его полосе (1060-1420 px) есть текст самой сцены
         art = re.sub(r'<g data-l="cap">.*?</g>', "", markup, flags=re.S)
@@ -109,7 +148,7 @@ def plan(v, durs=None):
         cap_top = next((y for y in spots if clash(y, y + 220) == 0), min(spots, key=lambda y: clash(y, y + 220)))
         rnd = random.Random(i * 7 + len(narr))
         dust = [[rnd.uniform(0, 1080), rnd.uniform(0, 1920), rnd.uniform(2, 6), rnd.uniform(8, 40)] for _ in range(36)]
-        scenes.append({"t0": t0, "d": d, "shots": shots, "caps": caps, "svg": markup, "dust": dust,
+        scenes.append({"t0": t0, "d": d, "shots": shots, "caps": caps, "svg": markup, "dust": dust, "acts": acts_s,
                        "siren": "#ff2d2d" in markup, "cap_top": cap_top, "room": "#0e1014" in markup, "outdoor": "#0e1014" not in markup})
         t0 += d
     return scenes
@@ -135,6 +174,9 @@ html,body{{margin:0;width:1080px;height:1920px;overflow:hidden;background:#07080
   color:#fff;text-transform:uppercase;letter-spacing:1px;-webkit-text-stroke:14px #000;paint-order:stroke fill;
   text-shadow:0 8px 24px rgba(0,0,0,.6);transform-origin:50% 50%}}
 #cap .k{{color:#ff3b30}}
+[data-a]{{transform-box:fill-box;transform-origin:50% 100%}}
+.lgL,.lgR{{transform-box:fill-box;transform-origin:50% 0%}}
+.amL,.amR{{transform-box:fill-box;transform-origin:50% 6%}}
 """
 
 JS = r"""
@@ -147,6 +189,37 @@ const dust = els.map(e => [...e.querySelectorAll('.d')]);
 const mids = els.map(e => e.querySelector('.mid'));
 function lerp(a, b, u) { const o = {}; for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) o[k] = (a[k]||0) + ((b[k]||0) - (a[k]||0))*u; return o; }
 let cur = -1;
+function runActs(i, lt) {
+  const s = S[i], root = els[i], by = {};
+  for (const a of (s.acts || [])) (by[a.a] = by[a.a] || []).push(a);
+  for (const id in by) {
+    const list = by[id].sort((p, q) => p.t0 - q.t0), st = {x: 0, y: 0, r: 0, s: 1, sx: 1, sy: 1, o: 1};
+    const mv = list.filter(a => a.k === 'move'); let walk = false, org = null;
+    if (mv.length && lt < mv[0].t0) Object.assign(st, mv[0].f || {});
+    for (const a of list) {
+      if (a.org) org = a.org;
+      if (lt < a.t0) continue;
+      const u = cl((lt - a.t0)/Math.max(.001, a.t1 - a.t0)), on = lt <= a.t1;
+      if (a.k === 'move') { const e = a.e === 'lin' ? u : (a.e === 'o' ? eo(u) : ease(u));
+        for (const k in a.to) { const f = (a.f && a.f[k] !== undefined) ? a.f[k] : st[k]; st[k] = f + (a.to[k] - f)*e; } }
+      else if (a.k === 'walk' && on) walk = true;
+      else if (a.k === 'spin' && on) st.r += 360*(a.rps || 1)*(lt - a.t0);
+      else if (a.k === 'shake' && on) st.x += (a.amp || 4)*Math.sin(lt*(a.hz || 70))*(1 - u*0.5);
+      else if (a.k === 'bob' && on) st.y -= Math.abs(Math.sin(lt*(a.hz || 6)))*(a.amp || 6);
+      else if (a.k === 'pulse' && on) st.s *= 1 + (a.amp || .08)*Math.sin(lt*(a.hz || 8));
+    }
+    const ph = Math.sin(lt*2*Math.PI*1.7), ang = walk ? 24*ph : 0, dy = walk ? -Math.abs(ph)*3 : 0;
+    root.querySelectorAll(`[data-a="${id}"]`).forEach(n => {
+      if (org) n.style.transformOrigin = org;
+      n.style.transform = `translate(${st.x.toFixed(2)}px,${(st.y + dy).toFixed(2)}px) rotate(${st.r.toFixed(2)}deg) scale(${(st.sx*st.s).toFixed(4)},${(st.sy*st.s).toFixed(4)})`;
+      n.style.opacity = st.o;
+      n.querySelectorAll('.lgL').forEach(q => q.style.transform = `rotate(${ang}deg)`);
+      n.querySelectorAll('.lgR').forEach(q => q.style.transform = `rotate(${-ang}deg)`);
+      n.querySelectorAll('.amL').forEach(q => q.style.transform = `rotate(${-ang*.7}deg)`);
+      n.querySelectorAll('.amR').forEach(q => q.style.transform = `rotate(${ang*.7}deg)`);
+    });
+  }
+}
 window.R = function (t) {
   let i = S.findIndex(s => t >= s.t0 && t < s.t0 + s.d); if (i < 0) i = S.length - 1;
   const s = S[i], lt = t - s.t0;
@@ -162,12 +235,9 @@ window.R = function (t) {
   // средний план «собирается» в начале сцены
   const pop = eo(cl(lt/.3)); const m = mids[i];
   m.style.opacity = pop; m.style.transform = `translateZ(${DEP.mid}px) scale(${((P - DEP.mid)/P*OV.mid*(.95 + .05*pop)).toFixed(4)})`;
-  // люди входят с шагом, потом дышат
-  people[i].forEach((p, k) => {
-    const u = cl((lt - .05 - .08*k)/.7), e = eo(u), side = k % 2 ? 1 : -1;
-    const dx = (1 - e)*320*side, dy = -Math.abs(Math.sin(lt*13 + k))*12*(1 - e) + Math.sin(lt*2 + k)*2;
-    p.style.transform = `translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px)`;
-  });
+  // люди слегка дышат; всё остальное движение задают действия сцены
+  people[i].forEach((p, k) => { p.style.transform = `translate(0px,${(Math.sin(lt*2 + k)*1.5).toFixed(2)}px)`; });
+  runActs(i, lt);
   // частицы
   dust[i].forEach((d, k) => { const sp = +d.dataset.sp; const y = (+d.dataset.y + sp*lt*6) % 2300 - 200; d.style.transform = `translate3d(${(+d.dataset.x + Math.sin(lt + k)*20).toFixed(1)}px,${y.toFixed(1)}px,${d.dataset.z}px)`; });
   SI.style.opacity = s.siren ? (.35 + .3*Math.sin(t*6)).toFixed(3) : 0;
@@ -196,7 +266,7 @@ def page(scenes):
                        for k, (x, y, r, sp) in enumerate(s["dust"]))
         parts.append(f'<div class="dust">{dots}</div>')
         body.append(f'<div class="sc" id="s{i}">{"".join(parts)}</div>')
-    data = [{k: s[k] for k in ("t0", "d", "shots", "caps", "siren", "cap_top")} for s in scenes]
+    data = [{k: s[k] for k in ("t0", "d", "shots", "caps", "siren", "cap_top", "acts")} for s in scenes]
     js = JS.replace("DATA", json.dumps(data, ensure_ascii=False)).replace("PERSP", str(P)).replace("DEPTHS", json.dumps(DEPTH)).replace("OVERS", json.dumps(OVERSCAN))
     return (f'<!doctype html><meta charset="utf-8"><style>{CSS}</style><div id="stage"><div id="world">{"".join(body)}</div></div>'
             f'<div id="siren"></div><div id="vig"></div><div id="cap"></div><script>{js}</script>')
@@ -206,7 +276,7 @@ def render(slug, preview=None):
     v = ALL[slug]
     voice = os.path.join(OUT, f"voice-{slug}.mp3")
     has_voice = os.path.exists(voice) and not preview
-    scenes = plan(v, voice_timing(v, voice) if has_voice else None)
+    scenes = plan(v, align(v, voice if has_voice else None))
     total = scenes[-1]["t0"] + scenes[-1]["d"]
     os.makedirs(OUT, exist_ok=True)
     html = os.path.join(OUT, f"motion-{slug}.html")
