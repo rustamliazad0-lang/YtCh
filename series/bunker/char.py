@@ -478,6 +478,7 @@ def arms_front(pose, t=0.0, sh=(-112, -808)):
         "bags": [((-150, -470), 1), ((150, -470), -1)],
         "money": [((-136, -470), 1), ((120, -650), -1)],
         "phone": [((-136, -470), 1), ((62, -920), -1)],
+        "climb": [((-72, -1010 - 80 * math.sin(t * 2 * math.pi)), 1), ((72, -1010 + 80 * math.sin(t * 2 * math.pi)), -1)],
         "flashlight": [((-142, -452), 1), ((30, -660), 1)],
     }[pose]
     out = []; dy = sh[1] + 808
@@ -561,21 +562,25 @@ def person(name="hero", view="front", face="neutral", phase=None, arms="down", b
         hip_y = -(max(reach) + ank)
         body_dy = hip_y + 478
         legs = [fk((0, hip_y), A[i][0], L1, A[i][1], L2) for i in range(2)]
-        if sit:
-            hip_y = -278; body_dy = hip_y + 478; A = [(math.pi / 2, 0.0), (math.pi / 2, 0.05)]
-            legs = [[(0, hip_y), (196, hip_y + 4), (190, -ank)], [(-8, hip_y), (186, hip_y), (176, -ank)]]
-            if arms == "down":
+        hx = 0.0
+        if sit:  # sit: 1 = сидит, 0 = встал (ступни на месте, корпус переезжает)
+            sf = float(sit); a1 = 0.02 + (math.pi / 2 - 0.02) * sf
+            hip_y = -(L1 * math.cos(a1) + L2 + ank); body_dy = hip_y + 478; hx = 190 - L1 * math.sin(a1)
+            A = [(a1, 0.0), (a1, 0.03)]
+            legs = [fk((hx, hip_y), a1, L1, 0.0, L2), fk((hx - 8, hip_y), a1, L1 - 8, 0.03, L2)]
+            if arms == "down" and sf > 0.5:
                 arms = "knees"
+            sit = sf > 0.01
         s += '<ellipse cx="10" cy="0" rx="110" ry="18" fill="#000" opacity=".28"/>'
         sw_a = 0.38 * math.sin(ph) if walking else 0.0
         far_i, near_i = 1, 0
         # дальняя рука, дальняя нога
-        shS = (-4, -808 + body_dy)
+        shS = (-4 + hx, -808 + body_dy)
         if arms in ("hold", "push"):
             tgt = (290, -548 + body_dy) if arms == "push" else (120, -580 + body_dy)
             armFar = ik((shS[0] + 10, shS[1]), (tgt[0] + 12, tgt[1] - 4), 178, 170, -1); armNear = ik(shS, tgt, 178, 170, -1)
         elif arms == "knees":
-            armFar = ik((shS[0] + 10, shS[1]), (170, -300), 178, 170, -1); armNear = ik(shS, (160, -296), 178, 170, -1)
+            armFar = ik((shS[0] + 10, shS[1]), (170 + hx * 0, -300), 178, 170, -1); armNear = ik(shS, (160, -296), 178, 170, -1)
         elif arms == "money":
             armFar = fk((shS[0] + 10, shS[1]), -sw_a, 178, -sw_a + 0.1, 170); armNear = ik(shS, (170, -680 + body_dy), 178, 170, -1)
         else:
@@ -590,13 +595,13 @@ def person(name="hero", view="front", face="neutral", phase=None, arms="down", b
         P = legs[near_i]; s += boot_side(L, P[-1], ang=(-0.3 * (A[near_i][1]) if (P[-1][1] < -ank - 3 and not sit) else 0))
         if L["hair"] == "long":
             pass
-        s += f'<g transform="translate(0 {body_dy:.1f})">{torso_side(L)}</g>'
+        s += f'<g transform="translate({hx:.1f} {body_dy:.1f})">{torso_side(L)}</g>'
         a, hn = arm_draw(L, armNear); s += a
         if prop == "bags":
             s += bag(hn[0], hn[1] + 10)
         if prop == "money":
             s += f'<rect x="{hn[0] + 4}" y="{hn[1] - 40}" width="66" height="34" rx="3" transform="rotate(-12 {hn[0]} {hn[1]})" fill="#9ac08a" stroke="{INK}" stroke-width="{FINE}"/><ellipse cx="{hn[0]}" cy="{hn[1]}" rx="20" ry="22" fill="{L["hands"]}" stroke="{INK}" stroke-width="{SW}"/>'
-        s += f'<g transform="translate(6 {-846 + body_dy:.1f}) scale({hk})">{head_side(L, F, blink, talk)}</g>'
+        s += f'<g transform="translate({6 + hx:.1f} {-846 + body_dy:.1f}) scale({hk})">{head_side(L, F, blink, talk)}</g>'
     g = uid("rim")
     dx, dy = 5 * light[0], 3 * light[1]
     defs = (f'<filter id="{g}" x="-15%" y="-10%" width="130%" height="120%"><feMorphology in="SourceAlpha" operator="erode" radius="3.2" result="i"/>'

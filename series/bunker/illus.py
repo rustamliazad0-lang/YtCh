@@ -146,7 +146,7 @@ class Pic:
         self.defs.append(f'<radialGradient id="{g}"><stop offset="0" stop-color="{color}" stop-opacity="{op}"/><stop offset=".45" stop-color="{color}" stop-opacity="{op * 0.35}"/><stop offset="1" stop-color="{color}" stop-opacity="0"/></radialGradient>')
         self.top.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{R:.0f}" fill="url(#{g})" style="mix-blend-mode:screen"/>')
 
-    def svg(self, sky="#101014", grade=("#2a3550", "#ffb060"), grain=0.07, vignette=0.55, particles=None):
+    def svg(self, sky="#101014", grade=("#2a3550", "#ffb060"), grain=0.07, vignette=0.55, particles=None, ptime=0.0, overlay=""):
         body = "".join(s for _, s in sorted(self.items, key=lambda t: -t[0]))
         defs = "".join(self.defs)
         rnd = random.Random(7)
@@ -155,15 +155,17 @@ class Pic:
             kind, n = particles
             for _ in range(n):
                 x, y, r = rnd.uniform(0, W), rnd.uniform(0, H), rnd.uniform(1.5, 5) if kind == "snow" else rnd.uniform(0.8, 2.6)
+                v = r * (38 if kind == "snow" else 6); ph = rnd.uniform(0, 6.3)
+                y = (y + v * ptime) % H; x = (x + (18 if kind == "snow" else 10) * math.sin(ptime * 0.8 + ph)) % W
                 parts += f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.1f}" fill="{"#ffffff" if kind == "snow" else "#ffe6b8"}" opacity="{rnd.uniform(0.35, 0.9) if kind == "snow" else rnd.uniform(0.15, 0.5):.2f}"/>'
+        gr = f'<rect width="{W}" height="{H}" filter="url(#grain)" opacity="{grain}" style="mix-blend-mode:overlay"/>' if grain else ""
         return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}"><defs>{defs}'
                 f'<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 1.2 -.35"/></filter>'
                 f'<radialGradient id="vig" cx="50%" cy="48%" r="72%"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="{vignette}"/></radialGradient>'
                 f'<linearGradient id="grade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{grade[0]}" stop-opacity=".18"/><stop offset="1" stop-color="{grade[1]}" stop-opacity=".08"/></linearGradient></defs>'
                 f'<rect width="{W}" height="{H}" fill="{sky}"/>{body}{"".join(self.top)}'
-                f'<rect width="{W}" height="{H}" fill="url(#grade)" style="mix-blend-mode:soft-light"/>'
-                f'<rect width="{W}" height="{H}" filter="url(#grain)" opacity="{grain}" style="mix-blend-mode:overlay"/>{parts}'
-                f'<rect width="{W}" height="{H}" fill="url(#vig)"/></svg>')
+                f'<rect width="{W}" height="{H}" fill="url(#grade)" style="mix-blend-mode:soft-light"/>{gr}{parts}'
+                f'<rect width="{W}" height="{H}" fill="url(#vig)"/>{overlay}</svg>')
 
 
 # ---------- материалы ----------
@@ -436,4 +438,62 @@ def pharmacy(cam):
     for (x0, x1, y0, y1) in ((-0.25, 0.25, 2.65, 2.8), (-0.075, 0.075, 2.48, 2.97)):
         pic.box(x0, x1, y0, y1, -3.98, -3.94, "#2ab060", stroke=False)
     pic.glow(0, 2.72, -3.9, 1.0, "#3aff8a", 0.5)
+    return pic
+
+
+def techroom(cam, red=False):
+    """Техкомната: скважина с насосом, ФВУ с ручкой, генератор, бак солярки, трубы, лампа."""
+    pic = Pic(cam, [(0.0, 2.4, -1.2, 4.0, "#ffbe70")], base=0.32)
+    Wl, Wr, Hc, Zb, Zf = -3.0, 3.0, 2.6, -3.0, 2.0
+    concrete_wall(pic, [(Wl, 0, Zb), (Wr, 0, Zb), (Wr, Hc, Zb), (Wl, Hc, Zb)], seams_u=(-1.5, 0, 1.5), seams_v=(1.3,), at=Zb)
+    concrete_wall(pic, [(Wl, 0, Zf), (Wl, 0, Zb), (Wl, Hc, Zb), (Wl, Hc, Zf)], seams_u=(-1.0,), plane="x", at=Wl)
+    concrete_wall(pic, [(Wr, 0, Zf), (Wr, 0, Zb), (Wr, Hc, Zb), (Wr, Hc, Zf)], seams_u=(-1.0,), plane="x", at=Wr)
+    pic.poly([(Wl, 0, Zf), (Wr, 0, Zf), (Wr, 0, Zb), (Wl, 0, Zb)], CONC_D, depth=99)
+    pic.poly([(Wl, Hc, Zf), (Wr, Hc, Zf), (Wr, Hc, Zb), (Wl, Hc, Zb)], "#5e584f", depth=99)
+    # скважина: оголовок, синий бак-гидроаккумулятор, труба с вентилем
+    pic.box(-2.0, -1.6, 0, 0.35, -2.6, -2.2, "#7a838c", top="#9aa3ac")
+    pic.jar(-1.2, 0, -2.55, 0.28, 0.75, "#2c6aa0", lid="#3a7ac0", label="#2c6aa0")
+    for y in [0.35 + k * 0.1 for k in range(18)]:
+        pic.box(-1.84, -1.76, y, y + 0.1, -2.44, -2.36, "#8a9198")
+    pic.box(-1.84, -0.9, 2.1, 2.18, -2.44, -2.36, "#8a9198")
+    x, y, d = cam.p(-1.8, 1.2, -2.35); r = 0.12 * cam.f / d
+    pic.raw(d - 0.3, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="none" stroke="#b8321e" stroke-width="{r * 0.25:.1f}"/><line x1="{x - r:.0f}" y1="{y:.0f}" x2="{x + r:.0f}" y2="{y:.0f}" stroke="#b8321e" stroke-width="{r * 0.2:.1f}"/>')
+    # ФВУ: серый короб, воздуховоды вверх, ручка-штурвал
+    pic.box(-0.45, 0.45, 0, 1.1, -2.9, -2.4, "#6f7a72", top="#86918a")
+    pic.box(-0.15, 0.15, 1.1, 2.6, -2.75, -2.55, "#9aa1a8", top="#b8bec4")
+    pic.box(-0.3, 0.3, 0.75, 0.95, -2.39, -2.37, "#3a3e44")
+    x, y, d = cam.p(0.3, 0.55, -2.35); r = 0.14 * cam.f / d
+    pic.raw(d - 0.3, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="none" stroke="#2a2a2e" stroke-width="{r * 0.18:.1f}"/><line x1="{x:.0f}" y1="{y:.0f}" x2="{x + r * 1.3:.0f}" y2="{y + r * 0.4:.0f}" stroke="#2a2a2e" stroke-width="{r * 0.2:.1f}"/>')
+    # генератор и бак солярки
+    pic.box(1.2, 2.1, 0, 0.75, -2.8, -2.3, "#c8a03a", top="#d8b44a")
+    pic.box(1.3, 2.0, 0.2, 0.55, -2.29, -2.27, "#2a2a2e")
+    pic.box(1.75, 1.85, 0.75, 2.6, -2.7, -2.6, "#4a4a4e")
+    pic.box(2.2, 2.9, 0, 1.2, -2.95, -1.6, "#4a6a3a", top="#5c7c4a")
+    pic.box(2.18, 2.2, 0.5, 0.75, -2.3, -2.0, "#e8e4d8")
+    hanging_lamp(pic, 0.0, 2.2, -1.2)
+    return pic
+
+
+def village(cam):
+    """Год назад: день, улица у забора, дом соседа, дерево."""
+    pic = Pic(cam, [(-3.0, 8.0, 3.0, 30.0, "#fff2d0")], base=0.9, soft=False)
+    pic.poly([(-12, 0, 6), (12, 0, 6), (12, 0, -14), (-12, 0, -14)], "#8a9a5a", grad=("#7a8a4a", "#a0aa6a"), stroke=False, depth=99)
+    pic.poly([(-12, 0.01, 1.2), (12, 0.01, 1.2), (12, 0.01, -0.4), (-12, 0.01, -0.4)], "#b8a888", stroke=False, depth=98)
+    # дом соседа
+    pic.box(-1.0, 3.2, 0, 2.6, -7.0, -4.0, "#d8c8a8", top="#c8b898")
+    pic.poly([(-1.2, 2.6, -3.9), (3.4, 2.6, -3.9), (1.1, 4.0, -3.9)], "#a83a2a")
+    for wx in (-0.4, 1.6):
+        pic.box(wx, wx + 0.8, 1.0, 1.9, -3.99, -3.97, "#7ab0d0")
+        pic.box(wx - 0.05, wx + 0.85, 0.95, 1.0, -3.96, -3.9, "#f0ece0")
+    pic.box(-4.0, -3.7, 0, 2.2, -5.0, -4.7, "#6a4a2a")
+    for cx_, cy_, rr in ((-3.85, 3.0, 1.1), (-4.5, 2.5, 0.8), (-3.2, 2.6, 0.8)):
+        x, y, d = cam.p(cx_, cy_, -4.85); R_ = rr * cam.f / d
+        pic.raw(d - 0.5, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{R_:.0f}" fill="#c87a2a" stroke="{INK}" stroke-width="2"/><circle cx="{x - R_ * .3:.0f}" cy="{y - R_ * .3:.0f}" r="{R_ * .45:.0f}" fill="#e09a3a"/>')
+    # деревянный забор
+    pic.box(-8, 8, 0.9, 0.98, -1.25, -1.2, "#8a6a44")
+    pic.box(-8, 8, 0.25, 0.33, -1.25, -1.2, "#8a6a44")
+    x = -8.0
+    while x < 8:
+        pic.box(x, x + 0.12, 0, 1.25, -1.2, -1.17, "#a8845a", top="#b8946a"); x += 0.18
+    pic.box(-8, 8, 0, 0.02, -1.6, -1.25, "#6a7a3a")
     return pic
