@@ -224,6 +224,18 @@ def bubble(x, y, w, h, text, fill="#fff", color="#111", tail="l", size=17):
     return s
 
 
+def _tag(fn, layer, extra=""):
+    """Помечает слой для 3D-рендера (motion.py): bg = стены и свет, fg = люди, cap = плашка субтитра.
+    Всё без метки идёт в средний план (предметы, цифры). На PNG-раскадровку не влияет."""
+    def w(*a, **k):
+        return f'<g data-l="{layer}"{extra}>' + fn(*a, **k) + "</g>"
+    return w
+
+
+room, lamp, siren = _tag(room, "bg"), _tag(lamp, "bg"), _tag(siren, "bg")
+person, caption = _tag(person, "fg", ' class="p"'), _tag(caption, "cap")
+
+
 def a1():
     s = room(True) + siren() + door(180, 270, 115)
     s += f'<g stroke="{AMB}" stroke-width="5" stroke-linecap="round" fill="none"><path d="M44 190 q-14 30 0 60"/><path d="M26 175 q-22 45 0 90"/><path d="M316 190 q14 30 0 60"/><path d="M334 175 q22 45 0 90"/></g>'
