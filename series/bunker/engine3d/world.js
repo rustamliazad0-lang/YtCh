@@ -83,7 +83,7 @@ export function buildBunker(scene, renderer) {
   // шахта люка вверх
   const shaftM = new THREE.MeshStandardMaterial({ map: concrete(41, [70, 66, 62]), roughness: 1, side: THREE.BackSide });
   const shaft = new THREE.Mesh(new THREE.CylinderGeometry(hr, hr, 0.9, 32, 1, true), shaftM); shaft.position.set(hx, H + 0.45, hz); scene.add(shaft);
-  const skyM = new THREE.MeshBasicMaterial({ color: '#120808' }); const sky = new THREE.Mesh(new THREE.CircleGeometry(hr, 32), skyM); sky.rotation.x = Math.PI / 2; sky.position.set(hx, H + 0.9, hz); scene.add(sky);
+  const skyM = new THREE.MeshBasicMaterial({ color: '#120808', transparent: true, opacity: 0 }); const sky = new THREE.Mesh(new THREE.CircleGeometry(hr, 32), skyM); sky.rotation.x = Math.PI / 2; sky.position.set(hx, H + 0.9, hz); scene.add(sky);
   const metal = new THREE.MeshStandardMaterial({ map: metalTex(5, [96, 100, 106]), metalness: 0.75, roughness: 0.42 });
   const rim = new THREE.Mesh(new THREE.TorusGeometry(hr, 0.05, 12, 40), metal); rim.rotation.x = Math.PI / 2; rim.position.set(hx, H - 0.02, hz); rim.castShadow = true; scene.add(rim);
   // крышка: шарнир у дальнего края, открывается вверх
@@ -130,5 +130,63 @@ export function buildBunker(scene, renderer) {
   scene.add(new THREE.HemisphereLight('#8090a0', '#2a2018', 0.25));
   const lamp = new THREE.PointLight('#ffb468', 9, 9, 1.6); lamp.position.copy(lampPos).add(new THREE.Vector3(0, -0.12, 0)); lamp.castShadow = true; lamp.shadow.mapSize.set(1024, 1024); lamp.shadow.bias = -0.002; scene.add(lamp);
   const red = new THREE.SpotLight('#ff2a1a', 0, 7, 0.75, 0.6, 1.2); red.position.set(hx, H + 0.8, hz); red.target.position.set(hx, 0, hz + 0.6); red.castShadow = true; red.shadow.mapSize.set(512, 512); scene.add(red); scene.add(red.target);
-  return { lidPivot, lamp, red, bulb, sky, skyM, hatch: HATCH, H };
+  // холодная заливка от люка (как в референсе: тёплый свет лампы против холодных теней)
+  const cool = new THREE.PointLight('#6a7fb0', 2.2, 8, 1.5); cool.position.set(hx - 0.5, H - 0.3, hz + 0.8); scene.add(cool);
+  // бочка воды с трубой из скважины, ФВУ с ручкой, дверь в генераторную (правая стена)
+  const blue = new THREE.MeshStandardMaterial({ color: '#2f6fb0', roughness: 0.45, metalness: 0.1 });
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 1.0, 28), blue); tank.position.set(2.5, 0.5, 0.2); tank.castShadow = true; tank.receiveShadow = true; scene.add(tank);
+  for (const y of [0.25, 0.75]) { const rib = new THREE.Mesh(new THREE.TorusGeometry(0.385, 0.02, 6, 28), blue); rib.rotation.x = Math.PI / 2; rib.position.set(2.5, y, 0.2); scene.add(rib); }
+  const pipeM = new THREE.MeshStandardMaterial({ color: '#7a8088', metalness: 0.8, roughness: 0.35 });
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.4, 12), pipeM); pipe.position.set(2.95, 0.7, 0.2); scene.add(pipe);
+  const fvu = box(0.5, 0.75, 0.55, new THREE.MeshStandardMaterial({ map: metalTex(17, [80, 92, 84]), metalness: 0.5, roughness: 0.55 }), 2.85, 1.15, -0.9);
+  const crank = new THREE.Group(); crank.position.set(2.56, 1.15, -0.9); scene.add(crank);
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.22, 0.03), pipeM); arm.position.y = 0.1; crank.add(arm);
+  const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.1, 10), new THREE.MeshStandardMaterial({ color: '#c09030' })); knob.rotation.z = Math.PI / 2; knob.position.set(-0.05, 0.2, 0); crank.add(knob);
+  const duct2 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2, 16), ductM); duct2.position.set(2.95, 2.1, -0.9); scene.add(duct2);
+  box(0.06, 2.0, 0.9, new THREE.MeshStandardMaterial({ map: metalTex(21, [70, 74, 78]), metalness: 0.6, roughness: 0.5 }), W / 2 - 0.03, 1.0, -3.3);
+  const gen = box(0.7, 0.5, 0.45, new THREE.MeshStandardMaterial({ color: '#c8a62c', roughness: 0.5, metalness: 0.2 }), 2.6, 0.27, -2.4);
+  box(0.3, 0.16, 0.3, new THREE.MeshStandardMaterial({ color: '#3a3d42', metalness: 0.6, roughness: 0.4 }), 2.5, 0.6, -2.4);
+  // ящики штабелем у задней стены справа
+  const wM = new THREE.MeshStandardMaterial({ map: woodTex(8), roughness: 0.8 });
+  for (const [x, y] of [[1.9, 0.18], [2.35, 0.18], [2.1, 0.54]]) box(0.42, 0.34, 0.4, wM, x, y, Z0 - D + 0.35);
+  // гараж над люком: виден только сквозь проём (красная лампа, снег в открытых воротах)
+  const up = new THREE.Group(); scene.add(up);
+  const gFloorM = new THREE.MeshStandardMaterial({ map: concrete(51, [60, 56, 52]), roughness: 0.95 });
+  const gWallM = new THREE.MeshStandardMaterial({ map: concrete(53, [95, 70, 58], 2), roughness: 0.95, side: THREE.BackSide });
+  const gBox = new THREE.Mesh(new THREE.BoxGeometry(5, 2.6, 5), gWallM); gBox.position.set(hx, H + 0.9 + 1.3, hz); up.add(gBox);
+  const gFloor = new THREE.Mesh(new THREE.RingGeometry(hr + 0.01, 3, 40), gFloorM); gFloor.rotation.x = -Math.PI / 2; gFloor.position.set(hx, H + 0.9, hz); up.add(gFloor);
+  for (let k = -2; k <= 2; k++) { const beam = new THREE.Mesh(new THREE.BoxGeometry(5, 0.14, 0.14), new THREE.MeshStandardMaterial({ map: woodTex(30 + k), roughness: 0.8 })); beam.position.set(hx, H + 3.35, hz + k); up.add(beam); }
+  const doorHole = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.0), new THREE.MeshBasicMaterial({ color: '#1a2236' })); doorHole.position.set(hx, H + 1.9, hz + 2.48); doorHole.rotation.y = Math.PI; up.add(doorHole);
+  const upRed = new THREE.PointLight('#ff3020', 0, 7, 1.4); upRed.position.set(hx, H + 2.9, hz); up.add(upRed);
+  const upBulb = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), new THREE.MeshStandardMaterial({ color: '#ff5040', emissive: '#ff2010', emissiveIntensity: 0 })); upBulb.position.copy(upRed.position); up.add(upBulb);
+  return { lidPivot, lamp, red, bulb, sky, skyM, hatch: HATCH, H, crank, upRed, upBulb, cool, up };
+}
+
+
+// ---------- улица (воспоминание «год назад»): снег, забор, гаражи, вечернее небо ----------
+export function buildVillage(scene, renderer) {
+  const pm = new THREE.PMREMGenerator(renderer);
+  scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.35;
+  const c = document.createElement('canvas'); c.width = 4; c.height = 256; const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#3b3c6a'); gr.addColorStop(0.45, '#9a6a86'); gr.addColorStop(0.75, '#e8a070'); gr.addColorStop(1, '#f6c48a');
+  g.fillStyle = gr; g.fillRect(0, 0, 4, 256); const skyT = new THREE.CanvasTexture(c); skyT.colorSpace = THREE.SRGBColorSpace;
+  scene.background = skyT; scene.fog = new THREE.Fog('#b88a90', 12, 45);
+  const snowT = concrete(61, [228, 232, 240]); snowT.repeat.set(8, 8);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ map: snowT, roughness: 0.9 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 80), new THREE.MeshStandardMaterial({ map: concrete(63, [70, 66, 66]), roughness: 0.9 })); road.rotation.x = -Math.PI / 2; road.position.set(-3.5, 0.01, 0); road.receiveShadow = true; scene.add(road);
+  const wood = new THREE.MeshStandardMaterial({ map: woodTex(70), roughness: 0.8 });
+  for (let x = -1.6; x <= 6; x += 0.18) { const pl = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.25, 0.04), wood); pl.position.set(x, 0.62, -0.6); pl.castShadow = true; scene.add(pl); }
+  for (const y of [0.35, 0.95]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(7.8, 0.08, 0.05), wood); rail.position.set(2.2, y, -0.63); scene.add(rail); }
+  const brick = new THREE.MeshStandardMaterial({ map: concrete(65, [120, 70, 55], 3), roughness: 0.9 });
+  const roof = new THREE.MeshStandardMaterial({ map: snowT, roughness: 0.9 });
+  const doorCols = ['#3a6a5a', '#7a2a24', '#3a5a7a', '#6a6a3a'];
+  for (let k = 0; k < 6; k++) { const x = -1 + k * 3.2, z = -7;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(3, 2.6, 5), brick); b.position.set(x, 1.3, z); b.castShadow = true; b.receiveShadow = true; scene.add(b);
+    const rf = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.25, 5.4), roof); rf.position.set(x, 2.72, z); scene.add(rf);
+    const dr = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.0), new THREE.MeshStandardMaterial({ color: doorCols[k % 4], metalness: 0.4, roughness: 0.6 })); dr.position.set(x, 1.05, z + 2.51); scene.add(dr); }
+  for (let k = 0; k < 4; k++) { const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 7, 8), new THREE.MeshStandardMaterial({ color: '#3a3430' })); pole.position.set(-5.5, 3.5, -4 - k * 8); scene.add(pole); }
+  scene.add(new THREE.HemisphereLight('#a8b0e0', '#806070', 0.9));
+  const sun = new THREE.DirectionalLight('#ffb070', 3.2); sun.position.set(-10, 6, -12); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+  Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12 }); scene.add(sun);
+  return {};
 }

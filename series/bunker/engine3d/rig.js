@@ -20,15 +20,17 @@ export const LOOKS = {
 
 // мимика: наклон бровей (+ внутренний край вверх), подъём бровей, открытость глаз, «большие глаза», улыбка/грусть, открытый рот
 export const FACES = {
-  neutral:  { bt: 0, by: 0, eo: 1, big: 0, mc: 0, mo: 0 },
-  worried:  { bt: 16, by: 2, eo: 1, big: 0, mc: -0.5, mo: 0 },
+  neutral:  { bt: 0, by: 0, eo: 0.62, big: 0, mc: 0, mo: 0 },
+  worried:  { bt: 16, by: 2, eo: 0.9, big: 0, mc: -0.5, mo: 0 },
   scared:   { bt: 22, by: 5, eo: 1, big: 1, mc: -0.6, mo: 0.35 },
   shocked:  { bt: 10, by: 7, eo: 1, big: 1, mc: 0, mo: 0.9 },
   angry:    { bt: -20, by: -2, eo: 0.75, big: 0, mc: -0.6, mo: 0.1 },
   sad:      { bt: 18, by: 1, eo: 0.7, big: 0, mc: -0.9, mo: 0 },
   happy:    { bt: -2, by: 2, eo: 0.15, big: 0, mc: 1, mo: 0.25 },
   tired:    { bt: 6, by: -1, eo: 0.45, big: 0, mc: -0.2, mo: 0 },
-  serious:  { bt: -8, by: -1, eo: 0.85, big: 0, mc: -0.2, mo: 0 },
+  serious:  { bt: -8, by: -1, eo: 0.6, big: 0, mc: -0.2, mo: 0 },
+  thinking: { bt: 4, by: 1, eo: 0.55, big: 0, mc: -0.15, mo: 0 },
+  anxious:  { bt: 20, by: 3, eo: 0.95, big: 0.4, mc: -0.5, mo: 0.15 },
   relieved: { bt: 8, by: 1, eo: 0.6, big: 0, mc: 0.5, mo: 0 },
 };
 
@@ -115,14 +117,15 @@ export class Char {
     this.root.setAttribute('transform', `translate(${st.x.toFixed(1)},${st.y.toFixed(1)}) scale(${(k * (st.flip ? -1 : 1)).toFixed(4)},${k.toFixed(4)})`);
     this.body.setAttribute('transform', `translate(0,${(st.bob || 0).toFixed(2)})`);
     for (const [i, s] of [[0, -1], [1, 1]]) {
-      const g = this.leg[s]; g.thigh.setAttribute('transform', `rotate(${(st.hips?.[i] || 0).toFixed(2)} ${g.hip[0]} ${g.hip[1]})`);
-      g.shin.setAttribute('transform', `rotate(${(st.knees?.[i] || 0).toFixed(2)} ${g.knee[0]} ${g.knee[1]})`);
+      const g = this.leg[s], ts = 1 - 0.9 * (st.sit || 0);
+      g.thigh.setAttribute('transform', `translate(0 -46) scale(1 ${ts.toFixed(4)}) translate(0 46) rotate(${(st.hips?.[i] || 0).toFixed(2)} ${g.hip[0]} ${g.hip[1]})`);
+      g.shin.setAttribute('transform', `translate(0 -46) scale(1 ${(1 / ts).toFixed(4)}) translate(0 46) rotate(${(st.knees?.[i] || 0).toFixed(2)} ${g.knee[0]} ${g.knee[1]})`);
       const a = this.arm[s]; a.up.setAttribute('transform', `rotate(${(st.sh?.[i] || 0).toFixed(2)} ${a.sh[0]} ${a.sh[1]})`);
       a.fore.setAttribute('transform', `rotate(${(st.elb?.[i] || 0).toFixed(2)} ${a.el[0]} ${a.el[1]})`);
     }
     const br = 1 + (st.breath || 0);
-    this.torso.setAttribute('transform', `translate(0,${(st.torsoY || 0).toFixed(2)}) scale(1,${br.toFixed(4)})`);
-    this.head.setAttribute('transform', `rotate(${(st.head || 0).toFixed(2)} 0 -152) translate(${(st.look || 0).toFixed(2)} 0)`);
+    this.torso.setAttribute('transform', `translate(0,${((st.torsoY || 0) + 41 * (st.sit || 0)).toFixed(2)}) scale(1,${br.toFixed(4)})`);
+    this.head.setAttribute('transform', `rotate(${(st.head || 0).toFixed(2)} 0 -152) translate(${(st.look || 0).toFixed(2)} 0) translate(0 -150) scale(1.32) translate(0 150)`);
     // лицо
     const f = st.face, back = !!st.back;
     this.face.setAttribute('opacity', back ? 0 : 1); this.backHair.setAttribute('opacity', back ? 1 : 0);
