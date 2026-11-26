@@ -474,26 +474,108 @@ def techroom(cam, red=False):
     return pic
 
 
+def gable_house(pic, x0, x1, z0, z1, h, wall, roof, rh=1.3, seed=0, porch=True):
+    """Дачный домик: стены, двускатная крыша (конёк вдоль x), окна с рамами и ставнями, труба, крыльцо."""
+    c = pic.cam; zm = (z0 + z1) / 2
+    pic.box(x0, x1, 0, h, z0, z1, wall, top=wall)
+    # доски обшивки на фасаде
+    for k in range(1, int(h / 0.22)):
+        y = k * 0.22; A, B = c.p(x0, y, z1), c.p(x1, y, z1)
+        pic.raw(max(A[2], B[2]) - 0.02, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="{shade(wall, .75)}" stroke-width="{2.2 / max(A[2], B[2]) * 3:.2f}" opacity=".6"/>')
+    if c.x > x1:
+        pic.poly([(x1, h, z1), (x1, h, z0), (x1, h + rh, zm)], shade(wall, .88))
+    if c.x < x0:
+        pic.poly([(x0, h, z1), (x0, h, z0), (x0, h + rh, zm)], shade(wall, .88))
+    pic.poly([(x0 - 0.25, h - 0.05, z1 + 0.35), (x1 + 0.25, h - 0.05, z1 + 0.35), (x1 + 0.25, h + rh, zm), (x0 - 0.25, h + rh, zm)], roof)
+    for k in range(1, 6):  # волны шифера
+        u = k / 6; A = c.p(x0 - 0.25 + (x1 - x0 + 0.5) * u, h - 0.05, z1 + 0.35); B = c.p(x0 - 0.25 + (x1 - x0 + 0.5) * u, h + rh, zm)
+        pic.raw(max(A[2], B[2]) - 0.03, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="{shade(roof, .7)}" stroke-width="{2 / A[2] * 3:.2f}"/>')
+    pic.box(x1 - 0.9, x1 - 0.6, h + rh * 0.4, h + rh + 0.4, zm + 0.1, zm + 0.4, "#8a4a38", top="#6a3a2a")
+    n = max(1, int((x1 - x0) / 1.6))
+    for k in range(n):
+        wx = x0 + (x1 - x0) * (k + 0.5) / n - 0.35
+        pic.box(wx - 0.12, wx, h * 0.38, h * 0.38 + 0.8, z1, z1 + 0.03, "#3a6a4a")
+        pic.box(wx + 0.7, wx + 0.82, h * 0.38, h * 0.38 + 0.8, z1, z1 + 0.03, "#3a6a4a")
+        pic.box(wx, wx + 0.7, h * 0.38, h * 0.38 + 0.8, z1, z1 + 0.02, "#9ac4dc", top="#f0ece0")
+        A, B = c.p(wx + 0.35, h * 0.38, z1 + 0.025), c.p(wx + 0.35, h * 0.38 + 0.8, z1 + 0.025)
+        pic.raw(A[2] - 0.04, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="#f0ece0" stroke-width="{3 / A[2] * 3:.1f}"/>')
+        pic.box(wx - 0.05, wx + 0.75, h * 0.38 - 0.06, h * 0.38, z1, z1 + 0.1, "#f0ece0")
+    if porch:
+        px = x0 + 0.5
+        pic.box(px, px + 1.2, 0, 0.35, z1, z1 + 0.8, "#8a6a44", top="#a8845a")
+        pic.box(px + 0.3, px + 0.95, 0.35, 2.0, z1 - 0.02, z1 + 0.01, "#6a4a2a")
+
+
+def birch(pic, X, Z, h=5.0, seed=1):
+    rnd = random.Random(seed); c = pic.cam
+    pic.box(X - 0.09, X + 0.09, 0, h * 0.75, Z - 0.09, Z + 0.09, "#ece8e0", top="#ece8e0")
+    for k in range(7):
+        y = rnd.uniform(0.3, h * 0.7); A = c.p(X - 0.09, y, Z + 0.1); B = c.p(X + rnd.uniform(-0.02, 0.06), y + 0.03, Z + 0.1)
+        pic.raw(A[2] - 0.05, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="#2a2420" stroke-width="{3 / A[2] * 3:.1f}"/>')
+    for k in range(26):
+        cx_, cy_, cz_ = X + rnd.uniform(-0.9, 0.9), h * rnd.uniform(0.55, 1.0), Z + rnd.uniform(-0.5, 0.5)
+        x, y, d = c.p(cx_, cy_, cz_); r = rnd.uniform(0.25, 0.45) * c.f / d
+        col = rnd.choice(["#d8a03a", "#c8a03a", "#e0b84a", "#a8a03a", "#8a9a3a"])
+        pic.raw(d - 0.2, f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{r:.0f}" ry="{r * 0.8:.0f}" fill="{col}" stroke="{INK}" stroke-width="{max(0.6, 4 / d):.1f}"/><ellipse cx="{x - r * .25:.0f}" cy="{y - r * .25:.0f}" rx="{r * .45:.0f}" ry="{r * .3:.0f}" fill="{shade(col, 1.18)}"/>')
+
+
+def pine(pic, X, Z, h=6.0, col="#3a5a3a"):
+    c = pic.cam
+    pic.box(X - 0.1, X + 0.1, 0, h * 0.3, Z - 0.1, Z + 0.1, "#5a3a24")
+    for k in range(4):
+        y0 = h * (0.22 + k * 0.18); w = 1.3 * (1 - k * 0.2)
+        A, B, T = c.p(X - w, y0, Z), c.p(X + w, y0, Z), c.p(X, y0 + h * 0.32, Z)
+        pic.raw(A[2] - 0.1 - k * 0.01, f'<polygon points="{A[0]:.0f},{A[1]:.0f} {B[0]:.0f},{B[1]:.0f} {T[0]:.0f},{T[1]:.0f}" fill="{shade(col, 1 + k * .06)}" stroke="{INK}" stroke-width="{max(.6, 4 / A[2]):.1f}" stroke-linejoin="round"/>')
+
+
 def village(cam):
-    """Год назад: день, улица у забора, дом соседа, дерево."""
-    pic = Pic(cam, [(-3.0, 8.0, 3.0, 30.0, "#fff2d0")], base=0.9, soft=False)
-    pic.poly([(-12, 0, 6), (12, 0, 6), (12, 0, -14), (-12, 0, -14)], "#8a9a5a", grad=("#7a8a4a", "#a0aa6a"), stroke=False, depth=99)
-    pic.poly([(-12, 0.01, 1.2), (12, 0.01, 1.2), (12, 0.01, -0.4), (-12, 0.01, -0.4)], "#b8a888", stroke=False, depth=98)
-    # дом соседа
-    pic.box(-1.0, 3.2, 0, 2.6, -7.0, -4.0, "#d8c8a8", top="#c8b898")
-    pic.poly([(-1.2, 2.6, -3.9), (3.4, 2.6, -3.9), (1.1, 4.0, -3.9)], "#a83a2a")
-    for wx in (-0.4, 1.6):
-        pic.box(wx, wx + 0.8, 1.0, 1.9, -3.99, -3.97, "#7ab0d0")
-        pic.box(wx - 0.05, wx + 0.85, 0.95, 1.0, -3.96, -3.9, "#f0ece0")
-    pic.box(-4.0, -3.7, 0, 2.2, -5.0, -4.7, "#6a4a2a")
-    for cx_, cy_, rr in ((-3.85, 3.0, 1.1), (-4.5, 2.5, 0.8), (-3.2, 2.6, 0.8)):
-        x, y, d = cam.p(cx_, cy_, -4.85); R_ = rr * cam.f / d
-        pic.raw(d - 0.5, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{R_:.0f}" fill="#c87a2a" stroke="{INK}" stroke-width="2"/><circle cx="{x - R_ * .3:.0f}" cy="{y - R_ * .3:.0f}" r="{R_ * .45:.0f}" fill="#e09a3a"/>')
-    # деревянный забор
-    pic.box(-8, 8, 0.9, 0.98, -1.25, -1.2, "#8a6a44")
-    pic.box(-8, 8, 0.25, 0.33, -1.25, -1.2, "#8a6a44")
-    x = -8.0
-    while x < 8:
-        pic.box(x, x + 0.12, 0, 1.25, -1.2, -1.17, "#a8845a", top="#b8946a"); x += 0.18
-    pic.box(-8, 8, 0, 0.02, -1.6, -1.25, "#6a7a3a")
+    """Год назад: дачный посёлок за городом. Дорога и забор уходят по диагонали, вдали справа город."""
+    pic = Pic(cam, [(-3.0, 8.0, 3.0, 30.0, "#fff2d0")], base=0.92, soft=False)
+    rnd = random.Random(9)
+    # город на горизонте (справа по диагонали), в дымке
+    for k in range(40):
+        x0 = 140 + k * 8 + rnd.uniform(-2, 2); w = rnd.uniform(7, 12); h = rnd.uniform(18, 55); z = -260 - rnd.uniform(0, 40)
+        col = mix("#8a9ab0", "#b4c6da", rnd.uniform(0.35, 0.75))
+        pic.box(x0, x0 + w, 0, h, z - 4, z, col, top=col, side=shade(col, .92), stroke=False)
+        for j in range(int(h / 6)):
+            A = cam.p(x0 + w * 0.2, 3 + j * 6, z + 0.05); B = cam.p(x0 + w * 0.8, 3 + j * 6, z + 0.05)
+            pic.raw(A[2] - 0.5, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="{shade(col, .85)}" stroke-width="1.2"/>')
+    for k in range(3):  # трубы ТЭЦ
+        x0 = 200 + k * 45; pic.box(x0, x0 + 5, 0, 70, -300, -295, "#a8b4c4", top="#a8b4c4", stroke=False)
+        pic.box(x0, x0 + 5, 52, 58, -300.1, -295, "#c89a9a", stroke=False)
+    # лес вдали слева
+    for k in range(40):
+        x = -60 + k * 2.2; z = -45 - rnd.uniform(0, 8)
+        pine(pic, x, z, h=rnd.uniform(7, 11), col=rnd.choice(["#3a5a3a", "#4a6a3a", "#2e4e34"]))
+    # земля, трава, дорога вдоль забора
+    pic.poly([(-80, 0, 12), (200, 0, 12), (200, 0, -160), (-80, 0, -160)], "#8a9a5a", grad=("#9aa86a", "#7a8a4a"), stroke=False, depth=999)
+    pic.poly([(-30, 0.01, 2.2), (120, 0.01, 2.2), (120, 0.01, -0.3), (-30, 0.01, -0.3)], "#b8a888", stroke=False, depth=998)
+    for k in range(60):  # колея и камешки
+        x = -10 + k * 1.3; q = cam.p(x, 0.01, 0.9 + 0.4 * math.sin(k)); pic.raw(q[2], f'<ellipse cx="{q[0]:.0f}" cy="{q[1]:.0f}" rx="{14 / q[2] * 3:.1f}" ry="{4 / q[2] * 3:.1f}" fill="#9a8a6a"/>')
+    # столбы ЛЭП вдоль дороги
+    tops = []
+    for k in range(10):
+        x = -4 + k * 9; pic.box(x - 0.08, x + 0.08, 0, 6.5, 2.6, 2.76, "#6a5038"); pic.box(x - 0.7, x + 0.7, 6.0, 6.12, 2.62, 2.74, "#6a5038")
+        tops.append(cam.p(x, 6.0, 2.68))
+    for a, b in zip(tops, tops[1:]):
+        if a[2] > 0.3 and b[2] > 0.3:
+            pic.raw(max(a[2], b[2]), f'<path d="M{a[0]:.0f} {a[1]:.0f} Q{(a[0] + b[0]) / 2:.0f} {(a[1] + b[1]) / 2 + 30:.0f} {b[0]:.0f} {b[1]:.0f}" fill="none" stroke="#2a2420" stroke-width="2"/>')
+    # дачи соседей за забором, уходят вдаль
+    houses = [(-5.0, -0.6, -7.0, -3.6, 2.7, "#d8c8a0", "#7a8a94"), (9.0, 12.5, -9.5, -6.4, 2.5, "#a8c4b0", "#8a3a2a"),
+              (19.0, 22.5, -10.0, -7.0, 2.6, "#e0b878", "#5a6a74"), (29.0, 32.0, -10.0, -7.2, 2.4, "#c8a8b8", "#8a4a38")]
+    for k, (x0, x1, z0, z1, h, wall, roof) in enumerate(houses):
+        gable_house(pic, x0, x1, z0, z1, h, wall, roof, seed=k)
+    # заборы участков: штакетник вдоль дороги
+    x = -12.0
+    while x < 60:
+        pic.box(x, x + 0.1, 0, 1.2, -1.2, -1.17, "#a8845a", top="#b8946a"); x += 0.17
+    pic.box(-12, 60, 0.85, 0.93, -1.25, -1.2, "#8a6a44"); pic.box(-12, 60, 0.25, 0.33, -1.25, -1.2, "#8a6a44")
+    for xg in (6.5, 16.5):  # калитки
+        pic.box(xg, xg + 1.0, 0, 1.3, -1.19, -1.16, "#4a6a8a")
+    # деревья и кусты
+    birch(pic, -7.0, -2.6, 5.2, 1); birch(pic, 15.0, -4.0, 6.0, 2); birch(pic, 25.0, -5.0, 5.6, 3)
+    pine(pic, -6.0, -6.0, 7.5); pine(pic, 27.0, -9.5, 8.0)
+    for k in range(14):
+        x = -8 + k * 4.3 + rnd.uniform(-0.5, 0.5); q = cam.p(x, 0.3, -1.5); r = 0.5 * cam.f / q[2]
+        pic.raw(q[2] + 0.1, f'<ellipse cx="{q[0]:.0f}" cy="{q[1]:.0f}" rx="{r:.0f}" ry="{r * .6:.0f}" fill="#5a7a3a" stroke="{INK}" stroke-width="{max(.6, 4 / q[2]):.1f}"/>')
     return pic

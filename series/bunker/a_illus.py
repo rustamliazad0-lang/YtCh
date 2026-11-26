@@ -316,12 +316,12 @@ def frame(t):
         return p.svg(sky="#0c0a0a", particles=("dust", 40), vignette=0.7, grain=0, ptime=t, overlay=ov + caption(t))
 
     if i == 8:  # год назад: машут через забор
-        c = cam(*kv([(0, (0.0, 1.3, 3.6, 0, 0, 820)), (1, (-0.25, 1.3, 3.1, 0, 0, 820))], u))
+        c = cam(*kv([(0, (-2.2, 1.5, 4.2, 0.55, 0.03, 820)), (1, (-2.0, 1.45, 3.6, 0.6, 0.03, 820))], u))
         p = I.village(c); rim = "#fff0c0"
         wv = lambda a: "wave" if u > a else "down"
-        put(p, C.person("hero", "front", face="happy", arms=wv(0.2), t=t, blink=blink(t, 0), rim=rim), -0.7, 1.0)
-        put(p, C.person("n1", "front", face="happy", arms=wv(0.4), t=t + 0.3, blink=blink(t, 1.1), rim=rim), 0.9, -1.9)
-        ov += '<rect width="1080" height="1920" fill="#e8c890" opacity=".35" style="mix-blend-mode:multiply"/>' + pill(t, S(8, .02), S(8, 1), "ГОД НАЗАД", "y", 0)
+        put(p, C.person("hero", "front", face="happy", arms=wv(0.2), t=t, blink=blink(t, 0), rim=rim), -1.5, 1.4)
+        put(p, C.person("n1", "front", face="happy", arms=wv(0.4), t=t + 0.3, blink=blink(t, 1.1), rim=rim), 3.3, -1.9)
+        ov += '<rect width="1080" height="1920" fill="#e8c890" opacity=".22" style="mix-blend-mode:multiply"/>' + pill(t, S(8, .02), S(8, 1), "ГОД НАЗАД", "y", 0)
         return p.svg(sky="#9cc4e0", particles=None, vignette=0.5, grain=0, overlay=ov + caption(t))
 
     # i == 9: расчёт у стеллажа
