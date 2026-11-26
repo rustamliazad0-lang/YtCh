@@ -470,7 +470,7 @@ VIDEOS = [
 
 def sheet(v):
     cards = ""
-    for i, (fn, tm, narr, vis, sfx) in enumerate(v["scenes"], 1):
+    for i, (fn, tm, narr, vis, sfx, *_x) in enumerate(v["scenes"], 1):
         svg = wrap(fn(), f"{i:02d}", tm)
         cards += (f'<div class="card">{svg}<div class="n"><b>Диктор:</b> {html.escape(narr)}<br><b>Кадр:</b> {html.escape(vis)}<br><b>Звук:</b> {html.escape(sfx)}</div></div>')
     return f"""<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
