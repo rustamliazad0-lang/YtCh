@@ -17,16 +17,16 @@ OUT = os.path.join(HERE, "video")
 ALL = {v["slug"]: v for v in B1.VIDEOS + B2.VIDEOS2}
 P = 1500  # перспектива, px
 DEPTH = {"fill": -1100, "bg": -520, "mid": -180, "fg": 0}
-OVERSCAN = {"fill": 1.35, "bg": 1.2, "mid": 0.94, "fg": 1.0}
+OVERSCAN = {"fill": 1.35, "bg": 1.2, "mid": 0.9, "fg": 1.0}
 KEY = set("""никогда нельзя соседи соседей соседям шестой шестого тишина тишину сломается вручную радиацию кипячение
 коробки коробку коробок ночью стучит стук люк скважины скважину война войну туалет генератор девять пятерых
 двадцать тринадцать одиннадцать тридцать сорок пятьдесят девяносто""".split())
 CAMS = {
     "push":   ({"tz": 0, "ry": -5}, {"tz": 170, "ry": -1}),
-    "truckL": ({"tx": 100, "tz": 110, "ry": 8}, {"tx": -100, "tz": 140, "ry": -8}),
-    "orbit":  ({"ry": -16, "tz": 120}, {"ry": 14, "tz": 150}),
+    "truckL": ({"tx": 70, "tz": 110, "ry": 5}, {"tx": -70, "tz": 140, "ry": -5}),
+    "orbit":  ({"ry": -10, "tz": 120}, {"ry": 9, "tz": 150}),
     "crane":  ({"ty": 240, "rx": 13, "tz": 90}, {"ty": 0, "rx": 3, "tz": 140}),
-    "truckR": ({"tx": -100, "tz": 110, "ry": -8}, {"tx": 100, "tz": 140, "ry": 8}),
+    "truckR": ({"tx": -70, "tz": 110, "ry": -5}, {"tx": 70, "tz": 140, "ry": 5}),
     "low":    ({"ty": -150, "rx": -11, "tz": 110}, {"ty": -90, "rx": -5, "tz": 170}),
     "pull":   ({"tz": 230, "rx": 4}, {"tz": 30, "rx": 0}),
 }
@@ -70,7 +70,8 @@ def plan(v):
         art = re.sub(r'<g data-l="cap">.*?</g>', "", markup, flags=re.S)
         ts = [(int(float(y)) * 3 + 120, int(fs)) for y, fs in re.findall(r'<text x="[^"]+" y="([\d.]+)"[^>]*font-size="(\d+)"', art)]
         clash = lambda lo, hi: sum(fs for y, fs in ts if lo <= y + 10 and y - fs * 3 <= hi)  # текст занимает [y-fs*3, y]
-        cap_top = 250 if clash(250, 470) < clash(1150, 1370) else 1150
+        spots = [1150, 250, 1000, 1300, 700]  # по порядку предпочтения; первое место без текста сцены
+        cap_top = next((y for y in spots if clash(y, y + 220) == 0), min(spots, key=lambda y: clash(y, y + 220)))
         rnd = random.Random(i * 7 + len(narr))
         dust = [[rnd.uniform(0, 1080), rnd.uniform(0, 1920), rnd.uniform(2, 6), rnd.uniform(8, 40)] for _ in range(36)]
         scenes.append({"t0": t0, "d": d, "shots": shots, "caps": caps, "svg": markup, "dust": dust,
