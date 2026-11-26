@@ -108,41 +108,87 @@ def thought(x, y, w, h, inner):
     return s + inner
 
 
+# ---------- люк в потолке (бункер под гаражом, вход сверху по лестнице) ----------
+HX, HY, HRX, HRY = 230, 66, 62, 20  # центр проёма в потолке
+
+
+def ladder(x=HX, top=HY + 8, bottom=420):
+    s = f'<rect x="{x-26}" y="{top}" width="7" height="{bottom-top}" fill="#5b6370" stroke="{A.INK}"/><rect x="{x+19}" y="{top}" width="7" height="{bottom-top}" fill="#5b6370" stroke="{A.INK}"/>'
+    return s + "".join(f'<rect x="{x-20}" y="{y}" width="40" height="5" fill="#6e7684" stroke="{A.INK}" stroke-width=".8"/>' for y in range(top + 20, bottom, 34))
+
+
+def hatch_top(cx=HX, cy=HY, rx=HRX, ry=HRY, outside=(), with_ladder=True, red=True):
+    """Проём в потолке. outside: [(dx, who, aid, scale)] стоят наверху, видны снизу в проёме."""
+    cid = f"ht{next(_n)}"
+    s = ladder(cx, cy + 8) if with_ladder else ""
+    s += f'<defs><clipPath id="{cid}"><ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}"/></clipPath></defs>'
+    s += f'<g clip-path="url(#{cid})"><rect x="{cx-rx}" y="{cy-ry-200}" width="{2*rx}" height="{2*ry+400}" fill="{"#3a0e0e" if red else "#1c2638"}"/>'
+    s += f'<ellipse cx="{cx-rx*0.3}" cy="{cy-ry}" rx="{rx}" ry="{ry*2}" fill="#ff3b30" fill-opacity="{0.45 if red else 0}"/>'
+    s += "".join(f'<rect x="{cx-rx+k*rx*0.5}" y="{cy-ry-200}" width="{rx*0.12}" height="400" fill="#1a0606" fill-opacity=".6"/>' for k in range(4))
+    for dx, who, aid, sc in outside:
+        feet = cy - ry * 0.25 + 132 * 1.3 * sc
+        s += g(aid, A.person(cx + dx, feet - 70, who, sc))
+    s += f'</g><ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="none" stroke="#5b6573" stroke-width="6"/>'
+    return s
+
+
+def lid(cx=HX, cy=HY, rx=HRX, ry=HRY, opened=False):
+    m = (f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="#3b424c" stroke="{A.INK}" stroke-width="2"/>'
+         f'<ellipse cx="{cx}" cy="{cy}" rx="{rx*0.7}" ry="{ry*0.7}" fill="none" stroke="#2a3038" stroke-width="3"/>'
+         f'<ellipse cx="{cx}" cy="{cy}" rx="{rx*0.25}" ry="{ry*0.3}" fill="none" stroke="#9aa5b1" stroke-width="3"/><line x1="{cx-rx*0.35}" y1="{cy}" x2="{cx+rx*0.35}" y2="{cy}" stroke="#9aa5b1" stroke-width="3"/>'
+         f'<rect x="{cx-rx*0.3}" y="{cy+ry*0.35}" width="{rx*0.6}" height="5" fill="#e2b13c"/>')
+    if opened:  # откинута вверх: тонкая полоска у дальнего края
+        m = f'<g transform="translate(0 {cy-ry}) scale(1 .15) translate(0 {-(cy-ry)})">{m}</g>'
+        return g("door", m)
+    return g("door", m)
+
+
+def flood(cx=HX, cy=HY, rx=HRX):
+    return g("flood", f'<polygon points="{cx-rx},{cy} {cx+rx},{cy} {cx+rx*2.2},420 {cx-rx*2.2},420" fill="#ff3b30" fill-opacity=".22"/>')
+
+
+def knock_marks(cx=HX, cy=HY):
+    return g("knk", f'<g stroke="{AMB}" stroke-width="4" stroke-linecap="round" fill="none"><path d="M{cx-80} {cy+6} q-10 14 0 28"/><path d="M{cx+80} {cy+6} q10 14 0 28"/><path d="M{cx-96} {cy} q-14 22 0 44"/><path d="M{cx+96} {cy} q14 22 0 44"/></g>')
+
+
+def open_lid(t0, t1):
+    return [mv("door", t0, t1, {"sy": 1, "y": 0}, {"sy": 0.15, "y": -HRY * 0.85}, "io", org="50% 0%"), mv("flood", t0 + (t1 - t0) * 0.4, t1, {"o": 0}, {"o": 1})]
+
+
+def climb_down(a, t0, t1, dy=-300):
+    return [mv(a, t0, t1, {"y": dy}, {"y": 0}, "lin"), walk(a, t0, t1)]
+
+
 # ---------- A ----------
 def A1():
-    s = room(True) + lamp(150, 0, 120) + hatch() + hatch_door()
-    s += g("knk", f'<g stroke="{AMB}" stroke-width="5" stroke-linecap="round" fill="none"><path d="M152 210 q-14 30 0 60"/><path d="M134 195 q-22 45 0 90"/></g>')
-    s += t(150, 96, "≈11 000", 52, AMB) + t(150, 128, "порций на пятерых, на 2 года", 15, "#cfd6de", "normal")
-    s += person(70, 440, "hero", 1.0, mood="worried", pid="hero")
+    s = room(True) + lamp(110, 60, 120) + hatch_top() + lid() + knock_marks()
+    s += t(108, 200, "≈11 000", 36, AMB) + t(110, 230, "порций на пятерых,", 14, "#cfd6de", "normal") + t(110, 248, "на 2 года", 14, "#cfd6de", "normal")
+    s += person(150, 440, "hero", 1.0, mood="worried", pid="hero")
     return s + caption(["А в люк", "стучит шестой"])
 
-
-A1_acts = [shake("door", 0.05, 0.25, 5), pulse("knk", 0.05, 0.25, 0.15, 30), shake("door", 0.55, 0.75, 5), pulse("knk", 0.55, 0.75, 0.15, 30),
-           *enter("hero", 0.25, 0.7, -120)]
+A1_acts = [shake("door", 0.05, 0.25, 4), pulse("knk", 0.05, 0.25, 0.15, 30), shake("door", 0.55, 0.75, 4), pulse("knk", 0.55, 0.75, 0.15, 30),
+           *enter("hero", 0.25, 0.7, -180)]
 
 
 def A2():
-    s = room(True) + hatch() + hatch_door()
-    s += g("phone", B2.card(40, 90, 150, 200, "#0d1117") + t(115, 118, "Друг · год назад", 13, "#9aa5b1")
-           + g("m1", B2.bubble(52, 136, 126, 62, "Через год|начнётся война.", "#2d3b4e", "#fff", "l", 13))
-           + g("m2", B2.bubble(52, 222, 126, 40, "Никому.", "#2d3b4e", "#fff", "l", 14)))
+    s = room(True) + hatch_top() + lid()
+    s += g("phone", B2.card(30, 120, 150, 200, "#0d1117") + t(105, 148, "Друг · год назад", 13, "#9aa5b1")
+           + g("m1", B2.bubble(42, 166, 126, 62, "Через год|начнётся война.", "#2d3b4e", "#fff", "l", 13))
+           + g("m2", B2.bubble(42, 252, 126, 40, "Никому.", "#2d3b4e", "#fff", "l", 14)))
     s += person(110, 440, "hero", 1.0, mood="worried", pid="hero")
     return s + caption(["Тот самый друг,", "что писал ночью"])
-
 
 A2_acts = [appear("phone", 0.05, 0.2, 40), appear("m1", 0.35), appear("m2", 0.7)]
 
 
 def A3():
-    s = room(True) + hatch() + hatch_door()
-    inner = (g("r1", B3.receipt(48, 105, -10, "рынок")) + g("r2", B3.receipt(118, 95, 2, "супермаркет")) + g("r3", B3.receipt(188, 108, 10, "аптека")))
-    s += g("th", thought(26, 80, 300, 200, ""))
-    s += inner
-    s += person(170, 440, "hero", 1.0, mood="worried", pid="hero")
+    s = room(True) + hatch_top() + lid()
+    s += g("th", thought(10, 110, 200, 170, ""))
+    s += g("r1", B3.receipt(20, 125, -10, "рынок")) + g("r2", B3.receipt(70, 118, 2, "супермаркет")) + g("r3", B3.receipt(120, 128, 10, "аптека"))
+    s += person(180, 440, "hero", 1.0, mood="worried", pid="hero")
     return s + caption(["Понемногу,", "в разных магазинах"])
 
-
-A3_acts = [mv("th", 0.05, 0.2, {"o": 0, "s": 0.3}, {"o": 1, "s": 1}, "o", org="80% 100%"),
+A3_acts = [mv("th", 0.05, 0.2, {"o": 0, "s": 0.3}, {"o": 1, "s": 1}, "o", org="90% 100%"),
            appear("r1", 0.3, 0.4, -30), appear("r2", 0.48, 0.58, -30), appear("r3", 0.66, 0.76, -30), bob("hero", 0.0, 1.0, 2, 3)]
 
 
@@ -174,33 +220,29 @@ A5_acts = [pop("i0", 0.05), pop("i1", 0.2), pop("i2", 0.35), appear("bad", 0.55)
 
 
 def A6():
-    s = room(True) + hatch(outside=()) + hatch_door()
-    s += person(150, 440, "hero", 1.0, arm_up=True, mood="worried", pid="hero")
+    s = room(True) + hatch_top() + flood() + lid()
+    s += person(HX, 440, "hero", 1.0, arm_up=True, mood="worried", pid="hero")
     return s + caption(["Ты открываешь"])
 
-
-A6_acts = [shake("door", 0.0, 0.35, 2, 30), mv("door", 0.35, 1.0, {"sx": 1}, {"sx": 0.1}, "io", org="0% 50%"), mv("hero", 0.4, 1.0, {"x": 0}, {"x": -30}, "o")]
+A6_acts = [mv("flood", 0.0, 0.01, {"o": 0}, {"o": 0}), mv("hero", 0.0, 0.4, {"y": 0}, {"y": -90}, "lin"), walk("hero", 0.0, 0.4), *open_lid(0.45, 0.95)]
 
 
 def A7():
-    s = room(True) + siren(0.25) + hatch(outside=())
-    s += g("door", f'<g transform="translate(176 250) scale(.1 1) translate(-176 -250)">{B1.door(262, 250, 88)}</g>')
-    s += person(60, 440, "hero", 1.0, mood="worried", pid="hero")
-    s += person(250, 440, "friend", 1.1, pid="fr")
-    s += g("say", B2.bubble(120, 110, 200, 64, "Я всё знал.", "#fff", "#111", "r", 26))
+    s = room(True) + hatch_top() + flood() + lid(opened=True)
+    s += person(70, 440, "hero", 1.0, mood="worried", pid="hero")
+    s += person(HX, 440, "friend", 1.05, pid="fr")
+    s += g("say", B2.bubble(40, 130, 200, 64, "Я всё знал.", "#fff", "#111", "r", 26))
     return s + caption(["Знал не он один"])
 
-
-A7_acts = [mv("fr", 0.0, 0.35, {"x": 20, "s": 0.55, "o": 0.6}, {"x": 0, "s": 1, "o": 1}, "o"), walk("fr", 0.0, 0.35), appear("say", 0.4)]
+A7_acts = [*climb_down("fr", 0.0, 0.4, -330), appear("say", 0.45)]
 
 
 def A8():
-    s = room(True) + siren(0.4)
-    s += hatch(180, 230, 130, outside=((-60, "n1", "n1"), (0, "n2", "n2"), (60, "n3", "n3")))
-    s += g("door", f'<g transform="translate(34 230) scale(.08 1) translate(-34 -230)">{B1.door(180, 230, 130)}</g>')
-    s += person(300, 440, "friend", 1.0, pid="fr")
+    s = room(True) + siren(0.25) + ladder(180, 300, 640)
+    s += hatch_top(180, 210, 160, 90, outside=((-80, "n1", "n1", 0.62), (0, "n2", "n2", 0.62), (80, "n3", "n3", 0.62)), with_ladder=False)
+    s += g("door", f'<g transform="translate(0 120) scale(1 .12) translate(0 -120)"><ellipse cx="180" cy="210" rx="160" ry="90" fill="#3b424c" stroke="{A.INK}" stroke-width="2"/></g>')
+    s += t(180, 70, "наверху, у люка", 22, "#cfd6de", "normal")
     return s + caption(["За ним стоят", "соседи"])
-
 
 A8_acts = [appear("n1", 0.1, 0.25, 10), appear("n2", 0.3, 0.45, 10), appear("n3", 0.5, 0.65, 10)]
 
@@ -231,11 +273,10 @@ A10_acts = [pop("plus", 0.05), *[pop(f"n{k}", 0.15 + 0.12 * k) for k in range(3)
 
 
 def A11():
-    s = room(True) + siren(0.3) + hatch(180, 200, 100, outside=((-45, "n1", "n1"), (0, "n2", "n2"), (45, "n3", "n3")))
-    s += g("door", f'<g transform="translate(60 200) scale(.08 1) translate(-60 -200)">{B1.door(180, 200, 100)}</g>')
-    s += t(180, 380, "Соседей", 54, "#fff") + t(180, 428, "пустил бы?", 36, ACC) + g("poll", poll(460))
+    s = room(True) + siren(0.3) + ladder(180, 270, 640)
+    s += hatch_top(180, 190, 140, 80, outside=((-70, "n1", "n1", 0.55), (0, "n2", "n2", 0.55), (70, "n3", "n3", 0.55)), with_ladder=False)
+    s += t(180, 330, "Соседей", 50, "#fff") + t(180, 374, "пустил бы?", 34, ACC) + g("poll", poll(400))
     return s + caption(["Да или нет?"])
-
 
 A11_acts = [pulse("poll", 0.3, 1.0, 0.05, 6)]
 
@@ -363,14 +404,14 @@ def Bv2():
 
 
 def Bv3():
-    s = room(True) + lamp(120, 0, 110) + hatch() + hatch_door()
-    s += g("lock", f'<circle cx="262" cy="250" r="30" fill="none" stroke="{ACC}" stroke-width="7"/><line x1="241" y1="229" x2="283" y2="271" stroke="{ACC}" stroke-width="7"/>')
-    s += t(130, 330, "несколько тонн", 30, AMB) + t(130, 362, "отходов за два года", 17, "#cfd6de", "normal")
-    s += person(60, 440, "hero", 0.9, mood="worried", pid="hero") + person(200, 445, "mom", 0.85, pid="mom")
+    s = room(True) + lamp(110, 60, 110) + hatch_top() + lid()
+    s += g("lock", f'<ellipse cx="{HX}" cy="{HY}" rx="30" ry="12" fill="none" stroke="{ACC}" stroke-width="6"/><line x1="{HX-22}" y1="{HY-9}" x2="{HX+22}" y2="{HY+9}" stroke="{ACC}" stroke-width="6"/>')
+    s += t(112, 230, "несколько тонн", 22, AMB) + t(112, 256, "отходов за два года", 15, "#cfd6de", "normal")
+    s += person(HX, 440, "hero", 0.9, mood="worried", pid="hero") + person(90, 445, "mom", 0.85, pid="mom")
     return s + caption(["Люк открывать", "нельзя"])
 
-
-Bv3_acts = [*enter("hero", 0.0, 0.4, -90), pop("lock", 0.45), pulse("lock", 0.55, 1.0, 0.06, 7), mv("mom", 0.5, 0.75, {"x": 0}, {"x": -50}), walk("mom", 0.5, 0.75)]
+Bv3_acts = [mv("hero", 0.0, 0.35, {"y": 0}, {"y": -70}, "lin"), walk("hero", 0.0, 0.35), pop("lock", 0.4), pulse("lock", 0.5, 1.0, 0.06, 7),
+            mv("mom", 0.45, 0.7, {"x": 0}, {"x": 60}), walk("mom", 0.45, 0.7), mv("hero", 0.7, 0.95, {"y": -70}, {"y": 0}, "lin"), walk("hero", 0.7, 0.95)]
 
 
 def Bv4():
@@ -537,29 +578,28 @@ def Cv8():
 
 
 def Cv9():
-    s = room(True) + siren(0.25) + hatch() + hatch_door()
-    s += g("knk", f'<g stroke="{AMB}" stroke-width="5" stroke-linecap="round" fill="none"><path d="M152 210 q-14 30 0 60"/><path d="M134 195 q-22 45 0 90"/></g>')
-    s += person(60, 440, "hero", 1.0, mood="worried", pid="hero") + person(140, 445, "mom", 0.85, pid="mom")
-    s += t(180, 66, "Пустил бы соседей?", 28, "#fff") + g("poll", poll(84))
+    s = room(True) + hatch_top() + lid() + knock_marks()
+    s += person(110, 440, "hero", 1.0, mood="worried", pid="hero") + person(50, 445, "mom", 0.85, pid="mom")
+    s += t(120, 200, "Пустил бы", 34, "#fff") + t(120, 236, "соседей?", 34, ACC) + g("poll", poll(250))
     return s + caption(["Ради лишних рук"])
 
-
-Cv9_acts = [shake("door", 0.0, 0.25, 5), pulse("knk", 0.0, 0.25, 0.15, 30), shake("door", 0.35, 0.55, 5), mv("hero", 0.1, 0.4, {"x": -40}, {"x": 0}), walk("hero", 0.1, 0.4), pulse("poll", 0.6, 1.0, 0.05, 6)]
+Cv9_acts = [shake("door", 0.0, 0.25, 4), pulse("knk", 0.0, 0.25, 0.15, 30), shake("door", 0.35, 0.55, 4), pulse("knk", 0.35, 0.55, 0.15, 30),
+            mv("hero", 0.1, 0.4, {"x": -60}, {"x": 0}), walk("hero", 0.1, 0.4), pulse("poll", 0.6, 1.0, 0.05, 6)]
 
 
 # ---------- D ----------
 def Dv1():
-    s = room() + lamp() + hatch(300, 230, 60, red=False)
-    s += g("door", f'<g transform="translate(220 230) scale(.1 1) translate(-220 -230)">{B1.door(300, 230, 60)}</g>')
-    xs = (28, 70, 112, 150, 186, 222, 258, 296, 332)
+    s = room() + lamp(110, 60, 120) + hatch_top(red=False) + lid(opened=True)
+    xs = (28, 66, 104, 140, 172, 270, 205, 300, 336)
     ks = ("grandpa", "mom", "hero", "kid", "kid", "friend", "n1", "n2", "n3")
     for k, (x, w) in enumerate(zip(xs, ks)):
         s += person(x, 470, w, 0.55, pid=f"p{k}")
-    s += t(150, 110, "9", 110, ACC) + t(150, 150, "человек в бункере на 5", 20, "#cfd6de", "normal")
+    s += t(110, 190, "9", 90, ACC) + t(110, 226, "человек в бункере на 5", 15, "#cfd6de", "normal")
     return s + caption(["Вас девять,", "еда на пятерых"])
 
-
-Dv1_acts = [x for k in (6, 7, 8) for x in [mv(f"p{k}", 0.05 + 0.15 * (k - 6), 0.4 + 0.15 * (k - 6), {"x": 300 - (296 if k == 7 else 258 if k == 6 else 332), "y": -60, "s": 0.6}, {"x": 0, "y": 0, "s": 1}, "lin"), walk(f"p{k}", 0.05 + 0.15 * (k - 6), 0.4 + 0.15 * (k - 6))]]
+Dv1_acts = [x for j, k in enumerate((6, 7, 8)) for x in [
+    mv(f"p{k}", 0.05 + 0.28 * j, 0.2 + 0.28 * j, {"x": HX - (205, 300, 336)[j], "y": -260}, {"x": HX - (205, 300, 336)[j], "y": 0}, "lin"), walk(f"p{k}", 0.05 + 0.28 * j, 0.2 + 0.28 * j),
+    mv(f"p{k}", 0.2 + 0.28 * j, 0.3 + 0.28 * j, {"x": HX - (205, 300, 336)[j]}, {"x": 0}, "lin"), walk(f"p{k}", 0.2 + 0.28 * j, 0.3 + 0.28 * j)]]
 
 
 def Dv2():
