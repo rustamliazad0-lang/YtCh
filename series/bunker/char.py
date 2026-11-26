@@ -421,17 +421,22 @@ def legs_draw(L, legs, view="front", far=False):
         s += limb(P, 54 if L["h"] > 800 else 50, pc)
         if L["stripes"]:
             sg = -1 if (view == "front" and P[0][0] < 0) else 1
-            off = (20 if view == "front" else 4) * sg
+            off = (-17 if view == "front" else 4) * sg
             Q = offset(sub(P, 0.02, 0.98), off)
-            s += f'<path d="{pl(Q)}" fill="none" stroke="#e8e8e6" stroke-width="4"/><path d="{pl(offset(Q, 8 * sg))}" fill="none" stroke="#e8e8e6" stroke-width="4"/>'
+            s += f'<path d="{pl(Q)}" fill="none" stroke="#e8e8e6" stroke-width="4"/><path d="{pl(offset(Q, (-7 if view == "front" else 8) * sg))}" fill="none" stroke="#e8e8e6" stroke-width="4"/>'
         # складки у колена
         k = P[1]
         s += f'<path d="M{k[0] - 14} {k[1] - 6} q8 6 18 2" fill="none" stroke="{INK}" stroke-width="1.3" opacity=".5"/>'
     return s
 
 
-def boot_front(L, A):
+def boot_front(L, A, lift=0.0):
     x, y = A; b, so = L["boots"], L["sole"]
+    if lift > 0.05:  # стопа в воздухе, носок вниз и к зрителю: ботинок короче и чуть крупнее
+        k = 1 + 0.1 * lift; h = 70 - 18 * lift
+        return (f'<g transform="translate({x} {y}) scale({k:.3f}) translate({-x} {-y})"><path d="M{x - 28} {y - 8} L{x + 28} {y - 8} L{x + 34} {y + h - 16} Q{x + 36} {y + h + 6} {x} {y + h + 8} Q{x - 36} {y + h + 6} {x - 34} {y + h - 16} Z" fill="{b}" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>'
+                f'<path d="M{x - 14} {y + 6} l28 0 M{x - 14} {y + 18} l28 0" stroke="{INK}" stroke-width="1.4" opacity=".7"/>'
+                f'<path d="M{x - 30} {y + h - 6} Q{x} {y + h + 12} {x + 30} {y + h - 6}" fill="none" stroke="{so}" stroke-width="7"/></g>')
     return (f'<path d="M{x - 30} {y - 8} L{x + 30} {y - 8} L{x + 36} {y + 52} Q{x + 40} {y + 70} {x + 28} {y + 70} L{x - 28} {y + 70} Q{x - 40} {y + 70} {x - 36} {y + 52} Z" fill="{b}" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>'
             f'<path d="M{x - 38} {y + 58} L{x + 38} {y + 58} L{x + 36} {y + 70} L{x - 36} {y + 70} Z" fill="{so}" stroke="{INK}" stroke-width="{FINE}"/>'
             f'<path d="M{x - 10} {y + 8} l20 0 M{x - 10} {y + 20} l20 0 M{x - 10} {y + 32} l20 0" stroke="{INK}" stroke-width="1.4" opacity=".7"/>')
@@ -501,25 +506,39 @@ def person(name="hero", view="front", face="neutral", phase=None, arms="down", b
     L = look(name); F = FACES[face]; k = L["h"] / 1000
     hk = 1.0 if L["h"] > 800 else 1.25  # у детей голова крупнее
     s = ""
-    drop = 0.0
+    drop = 0.0; LIFT = [0.0, 0.0]
     if view in ("front", "back"):
         if sit:
             drop = 200
             hipL, hipR = (-36, -478 + drop), (36, -478 + drop)
             legs = [[hipL, (-44, -300 + drop * 0.25), (-46, -70)], [hipR, (44, -300 + drop * 0.25), (46, -70)]]
         else:
-            lift = [max(0, math.sin(t * 2 * math.pi)) * step * 60, max(0, -math.sin(t * 2 * math.pi)) * step * 60]
-            legs = [ik((-34, -478), (-40, -70 - lift[0]), 206, 206, 1), ik((34, -478), (40, -70 - lift[1]), 206, 206, -1)]
-            drop = -abs(math.sin(t * 2 * math.pi)) * step * 10
+            # шаг на камеру/от камеры: узкая колея, маховая нога сгибается в колене к зрителю (укорачивается),
+            # стопа отрывается носком вниз, таз смещается на опорную ногу, корпус покачивается вверх-вниз
+            ph = t * 2 * math.pi
+            sway = 9 * math.sin(ph) * step
+            lifts = [max(0.0, math.sin(ph)) * step, max(0.0, -math.sin(ph)) * step]
+            legs, LIFT = [], lifts
+            for li, sg in enumerate((-1, 1)):
+                hx_ = sg * 37 + sway; fx = sg * (31 if step else 40) + sway * 0.4
+                ay = -70 - 64 * lifts[li]
+                kx = (hx_ + fx) / 2 + sg * 2; ky = (-478 + ay) / 2 + 22 * lifts[li]
+                legs.append([(hx_, -478), (kx, ky), (fx, ay)])
+            drop = -abs(math.sin(ph)) * step * 9 + 3 * step
         body_dy = drop
         armP = arms_front(arms, t, sh=(-112, -808 + body_dy))
+        if step and arms == "down" and not sit:
+            ph = t * 2 * math.pi
+            armP = [ik((-112, -808 + body_dy), (-134 + 8 * max(0, -math.sin(ph)), -452 + body_dy - 18 * max(0, -math.sin(ph))), 178, 170, 1),
+                    ik((112, -808 + body_dy), (134 - 8 * max(0, math.sin(ph)), -452 + body_dy - 18 * max(0, math.sin(ph))), 178, 170, -1)]
         if view == "back":
             armP = [[(-p[0], p[1]) for p in a] for a in armP[::-1]]
         # тень
         s += '<ellipse cx="0" cy="0" rx="120" ry="20" fill="#000" opacity=".28"/>'
-        s += legs_draw(L, legs, "front")
-        for P in legs:
-            s += boot_front(L, P[-1])
+        order = sorted(range(len(legs)), key=lambda q: LIFT[q])  # маховая нога ближе к зрителю: рисуем последней
+        for q in order:
+            P = legs[q]; lf = (LIFT[q] if not sit and step else 0.0)
+            s += legs_draw(L, [P], "front") + boot_front(L, P[-1], lf)
         if L["hair"] in ("long", "tails") and view == "front":
             s += f'<g transform="translate(0 {-846 + body_dy:.1f}) scale({hk})">{hair_behind(L, 0, -R)}</g>'
         s += f'<g transform="translate(0 {body_dy:.1f})">{torso_front(L, back=view == "back")}</g>'
@@ -539,6 +558,9 @@ def person(name="hero", view="front", face="neutral", phase=None, arms="down", b
                   + "".join(f'<line x1="{hx - 60}" y1="{hy - 50 + j * 16}" x2="{hx + 14}" y2="{hy - 50 + j * 16}" stroke="#7a8aa0" stroke-width="2"/>' for j in range(6))
                   + f'<rect x="{hx - 74}" y="{hy - 74}" width="104" height="14" rx="3" fill="#a83a2a" stroke="{INK}" stroke-width="{FINE}"/></g>'
                   + f'<ellipse cx="{hx + 10}" cy="{hy + 6}" rx="20" ry="22" fill="{L["hands"]}" stroke="{INK}" stroke-width="{SW}"/>')
+        if prop == "phone":
+            hx, hy = hands[1]
+            s += f'<rect x="{hx - 30}" y="{hy - 64}" width="60" height="104" rx="9" fill="#15181d" stroke="{INK}" stroke-width="{SW}"/><rect x="{hx - 24}" y="{hy - 56}" width="48" height="86" rx="5" fill="#9ac8f0"/><ellipse cx="{hx + 6}" cy="{hy + 18}" rx="20" ry="22" fill="{L["hands"]}" stroke="{INK}" stroke-width="{SW}"/>'
         if prop == "bag1":
             hx, hy = hands[1]
             s += bag(hx, hy + 6)

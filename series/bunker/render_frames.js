@@ -10,9 +10,9 @@ const HTML = s => `<html><body style="margin:0;overflow:hidden;background:#000">
     for (const f of process.argv.slice(3)) { await p.setContent(HTML(fs.readFileSync(f, 'utf8'))); await p.screenshot({ path: f.replace(/\.svg$/, '.png') }); }
     await b.close(); return;
   }
-  const [out, fps] = process.argv.slice(2), N = 4;
-  const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', fps, '-c:v', 'png', '-i', '-', '-c:v', 'libx264', '-preset', 'fast', '-crf', '12', '-pix_fmt', 'yuv420p', out], { stdio: ['pipe', 'inherit', 'inherit'] });
-  const pages = await Promise.all([...Array(N)].map(() => b.newPage({ viewport: { width: 1080, height: 1920 } })));
+  const [out, fps, scale] = process.argv.slice(2), N = 4, SC = +(scale || 1);
+  const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', fps, '-c:v', 'png', '-i', '-', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '8', '-pix_fmt', 'yuv420p', out], { stdio: ['pipe', 'inherit', 'inherit'] });
+  const pages = await Promise.all([...Array(N)].map(() => b.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: SC })));
   const free = [...pages], waiters = [], done = new Map(); let next = 0;
   const getPage = () => free.length ? Promise.resolve(free.pop()) : new Promise(r => waiters.push(r));
   const release = p => waiters.length ? waiters.shift()(p) : free.push(p);

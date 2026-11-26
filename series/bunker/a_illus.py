@@ -13,7 +13,8 @@ import build_storyboard_3 as B3
 HERE = os.path.dirname(os.path.abspath(__file__))
 VOICE = os.path.join(HERE, "video", "voice-A.mp3")
 OUT = os.path.join(HERE, "video", "bunker-A-test.mp4")
-FPS = 24
+FPS = 30
+SCALE = 4 / 3  # рендер 1440x2560 (векторы чётче, YouTube даёт лучший кодек), TikTok-версия даунскейлом в 1080
 M = 1.75 / 1000
 STRIDE = 2 * 2 * 412 * math.sin(0.42) * M  # метров за полный цикл шага: стопы не скользят
 
@@ -48,8 +49,28 @@ def step_of(K, u, default=None):
     return v
 
 
+CURT = [0.0]
+KW = []  # времена красных ключевых слов: короткий наезд камеры
+
+
+def punch(t):
+    v = 0.0
+    for k in KW:
+        d = t - k
+        if 0 <= d < 0.5:
+            v = max(v, math.sin(min(1, d / 0.12) * math.pi / 2) * (1 - max(0, d - 0.12) / 0.38))
+    return v
+
+
 def cam(x, y, z, yaw=0.0, pitch=0.0, f=760):
-    return I.Cam(x=x, y=y, z=z, yaw=yaw, pitch=pitch, f=f)
+    """Камера с «живым» дыханием (ручная съёмка) и наездом на ключевых словах."""
+    t = CURT[0]
+    return I.Cam(x=x + 0.012 * math.sin(t * 1.1), y=y + 0.008 * math.sin(t * 1.7 + 1), z=z, yaw=yaw + 0.004 * math.sin(t * 0.8),
+                 pitch=pitch + 0.004 * math.sin(t * 1.3), f=f * (1 + 0.07 * punch(t)))
+
+
+def shake(c, t, e):
+    c.vx += math.sin(t * 95) * 16 * e; c.vy += math.cos(t * 80) * 12 * e
 
 
 def walk(path, u, dur):
@@ -272,32 +293,58 @@ KNOCKS = [S(0, 0.04) + k * 0.2 for k in range(3)] + [S(0, 0.58) + k * 0.2 for k 
 
 def frame(t):
     """Возвращает svg кадра для времени t."""
+    CURT[0] = t
     i = next((k for k in range(len(D)) if t < T0[k] + D[k]), len(D) - 1)
     u = (t - T0[i]) / D[i]; dur = D[i]
     ov = ""; kw = dict(sky="#101014", particles=("dust", 45), vignette=0.68, grain=0, ptime=t)
     rim = "#ffd59a"
 
-    if i == 0:  # стук: герой проходит к люку, смотрит вверх
+    if i == 0:  # стук: общий план -> люк снизу крупно (пыль) -> лицо крупно
         e = knock_env(t)
-        c = cam(*kv([(0, (-1.0, 1.25, 0.9, 0, .06, 800)), (1, (0.1, 1.2, 0.3, 0, .08, 800))], u))
-        c.vx += math.sin(t * 95) * 14 * e; c.vy += math.cos(t * 80) * 10 * e
-        p = I.bunker(c)
-        family(p, u, t)
-        actor(p, "hero", [(0, -2.6, -1.4), (0.1, -2.6, -1.4), (0.45, 0.25, -1.5)], u, dur, t,
-              faces=[(0, "neutral"), (0.15, "worried"), (0.6, "scared")], standview="front")
+        tp = word_time(0, "порций"); tl = word_time(0, "люк")
+        if u < 0.5:
+            w = u / 0.5
+            c = cam(*kv([(0, (-1.0, 1.25, 0.9, 0, .06, 800)), (1, (-0.2, 1.2, 0.4, 0, .07, 800))], w)); shake(c, t, e)
+            p = I.bunker(c); family(p, u, t)
+            actor(p, "hero", [(0, -2.6, -1.4), (0.1, -2.6, -1.4), (0.45, 0.25, -1.5)], u, dur, t, faces=[(0, "neutral"), (0.15, "worried")], standview="front")
+        elif u < 0.72:
+            w = (u - 0.5) / 0.22
+            c = cam(*kv([(0, (0.8, 1.5, -1.75, 0.04, 0.85, 820)), (1, (0.85, 1.55, -1.9, 0.04, 0.9, 880))], w)); shake(c, t, e)
+            p = I.bunker(c)
+            hx_, hy_, _ = c.p(HX, 2.8, HZ)
+            for a in KNOCKS:
+                dt_ = t - a
+                if 0 < dt_ < 1.3:
+                    for k in range(10):
+                        ox = (k * 37 % 160) - 80; yy = hy_ + 40 + dt_ * (300 + k * 25) + 200 * dt_ * dt_
+                        ov += f'<circle cx="{hx_ + ox + 10 * math.sin(k + t * 3):.0f}" cy="{yy:.0f}" r="{2 + k % 3}" fill="#d8cdb8" opacity="{max(0, 0.8 - dt_ * 0.6):.2f}"/>'
+        else:
+            w = (u - 0.72) / 0.28
+            c = cam(*kv([(0, (0.25, 1.48, -0.5, 0, .05, 1100)), (1, (0.25, 1.5, -0.68, 0, .06, 1150))], w)); shake(c, t, e)
+            p = I.bunker(c); family(p, u, t)
+            actor(p, "hero", [(0, 0.25, -1.5)], u, dur, t, faces=[(0, "scared")])
         if e > 0:
             x, y, _ = c.p(HX, 2.8, HZ)
-            ov += f'<text x="{x + 60:.0f}" y="{y + 40:.0f}" font-family="{FONT}" font-weight="900" font-size="{70 + 30 * e:.0f}" fill="#ffffff" stroke="#0d0b0a" stroke-width="10" paint-order="stroke" transform="rotate(-8 {x:.0f} {y:.0f})">ТУК!</text>'
-        tp = word_time(0, "порций"); tl = word_time(0, "люк")
+            x = min(900, max(80, x)); y = min(1500, max(300, y))
+            ov += f'<text x="{x + 30:.0f}" y="{y + 40:.0f}" font-family="{FONT}" font-weight="900" font-size="{80 + 40 * e:.0f}" fill="#ffffff" stroke="#0d0b0a" stroke-width="10" paint-order="stroke" transform="rotate(-8 {x:.0f} {y:.0f})">ТУК!</text>'
         ov += pill(t, S(0, .08), S(0, 1), "ЕДА: ≈11 000 ПОРЦИЙ", "w", 0) + pill(t, S(0, .35), S(0, 1), "5 ЧЕЛОВЕК · 2 ГОДА", "y", 1)
         ov += card(t, tp, tl, "can", 230, 1560, 0.85) + card(t, tp + 0.15, tl, "jar", 540, 1560, 0.85) + card(t, tp + 0.3, tl, "mre", 850, 1560, 0.85)
         return p.svg(overlay=ov + caption(t), **kw)
 
-    if i == 1:  # сообщение от друга год назад
+    if i == 1:  # телефон -> лицо в свете экрана -> наезд на «Никому.»
+        if 0.45 <= u < 0.62:
+            w = (u - 0.45) / 0.17
+            c = cam(*kv([(0, (0.3, 1.5, -0.55, 0, .04, 1100)), (1, (0.3, 1.5, -0.7, 0, .04, 1150))], w))
+            p = I.bunker(c); family(p, u, t)
+            actor(p, "hero", [(0, 0.3, -1.6)], u, dur, t, faces=[(0, "worried")], arms="count", prop="phone")
+            fx_, fy_, _ = c.p(0.3, 1.62, -1.6)
+            ov += f'<circle cx="{fx_:.0f}" cy="{fy_ + 60:.0f}" r="420" fill="url(#pglow)" style="mix-blend-mode:screen"/>'
+            return p.svg(overlay='<defs><radialGradient id="pglow"><stop offset="0" stop-color="#8ac4ff" stop-opacity=".45"/><stop offset="1" stop-color="#8ac4ff" stop-opacity="0"/></radialGradient></defs>' + ov + caption(t), **kw)
         c = cam(*kv([(0, (0.2, 1.4, 0.5, 0, .1, 760)), (1, (0.0, 1.4, 0.2, 0, .1, 760))], u))
         p = I.bunker(c); family(p, u, t)
         bg = p.svg(**kw)
-        ph = phone_svg(t, u)
+        z = 1.0 if u < 0.45 else 1.0 + 0.5 * ss((u - 0.62) / 0.2)
+        ph = f'<g transform="translate(540 820) scale({z:.3f}) translate(-540 -820)">{phone_svg(t, u)}</g>'
         return (f'<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920"><defs><filter id="pb"><feGaussianBlur stdDeviation="10"/></filter></defs>'
                 f'<g filter="url(#pb)">{bg}</g><rect width="1080" height="1920" fill="#000" opacity=".35"/>{ph}{caption(t)}</svg>')
 
@@ -399,26 +446,37 @@ def frame(t):
             ov += '<rect width="1080" height="1920" fill="#ff2a1a" opacity=".14" style="mix-blend-mode:multiply"/>'
         return p.svg(overlay=ov + caption(t), **kw)
 
-    if i == 6:  # друг спускается, «я всё знал», герой в шоке
-        c = cam(*kv([(0, (-0.6, 1.3, -0.1, 0.28, .06, 760)), (1, (-0.45, 1.28, -0.55, 0.28, .05, 760))], u))
-        p = I.bunker(c, hatch_open=True, red=True, torch=True); rim = "#ff8a6a"
-        clip = c.p(HX, 2.8, -3.2)[1]
+    if i == 6:  # друг спускается (общий) -> друг крупно «я всё знал» -> лицо героя в шоке
+        rim = "#ff8a6a"
+        redov = '<rect width="1080" height="1920" fill="#ff2a1a" opacity=".14" style="mix-blend-mode:multiply"/>'
+        fpath = [(0, HX, -3.2), (0.25, 0.6, -2.5)]
         if u < 0.4:
+            c = cam(*kv([(0, (-0.6, 1.3, -0.1, 0.28, .06, 760)), (1, (-0.5, 1.28, -0.4, 0.28, .05, 760))], u / 0.4))
+            p = I.bunker(c, hatch_open=True, red=True, torch=True)
+            clip = c.p(HX, 2.8, -3.2)[1]
             Y = 2.0 * (1 - ss(u / 0.38))
             put(p, C.person("friend", "back", arms="climb", step=1.0, t=u * 4, rim=rim), HX, -3.2, Y, clip_y=clip)
-            fx, fz = HX, -3.2
-        else:
-            w = (u - 0.4) / 0.6
-            fx, fz, _, _, _ = walk([(0, HX, -3.2), (0.25, 0.6, -2.5)], w, 1)
-            actor(p, "friend", [(0, HX, -3.2), (0.25, 0.6, -2.5)], w, 1, t, faces=[(0, "serious")], talk=[(0.27, 0.65)], rim=rim, off=0.9)
-        actor(p, "hero", [(0, -0.6, -2.3)], u, dur, t, faces=[(0, "worried"), (0.58, "shocked")], rim=rim)
-        ov += '<rect width="1080" height="1920" fill="#ff2a1a" opacity=".14" style="mix-blend-mode:multiply"/>'
-        if u >= 0.56:
-            x, y, d = c.p(fx, 1.95, fz)
-            sc, op_ = pop(t, S(6, .56))
-            ov += (f'<g opacity="{op_:.2f}" transform="translate({x + 40:.0f} {y - 60:.0f}) scale({sc:.3f})"><path d="M0 0 L280 0 Q300 0 300 20 L300 100 Q300 120 280 120 L70 120 L20 160 L36 120 L20 120 Q0 120 0 100 Z" fill="#f6f1e6" stroke="#14110f" stroke-width="5"/>'
-                   f'<text x="150" y="76" text-anchor="middle" font-family="{FONT}" font-weight="800" font-size="46" fill="#1d1a17">Я всё знал.</text></g>')
-        return p.svg(overlay=ov + caption(t), **kw)
+            actor(p, "hero", [(0, -0.6, -2.3)], u, dur, t, faces=[(0, "worried")], rim=rim)
+            return p.svg(overlay=redov + caption(t), **kw)
+        w = (u - 0.4) / 0.6
+        if u < 0.75:
+            ww = (u - 0.4) / 0.35
+            c = cam(*kv([(0, (0.75, 1.5, -1.3, 0, .03, 1050)), (1, (0.7, 1.52, -1.5, 0, .03, 1100))], ww))
+            p = I.bunker(c, hatch_open=True, red=True, torch=True)
+            fx, fz, _, _, _ = walk(fpath, w, 1)
+            actor(p, "friend", fpath, w, 1, t, faces=[(0, "serious")], talk=[(0.27, 0.6)], rim=rim, off=0.9)
+            ov = redov
+            if u >= 0.56:
+                x, y, d = c.p(fx, 1.95, fz); x = min(700, x); y = max(260, y)
+                sc, op_ = pop(t, S(6, .56))
+                ov += (f'<g opacity="{op_:.2f}" transform="translate({x + 60:.0f} {y - 120:.0f}) scale({sc * 1.2:.3f})"><path d="M0 0 L280 0 Q300 0 300 20 L300 100 Q300 120 280 120 L70 120 L20 160 L36 120 L20 120 Q0 120 0 100 Z" fill="#f6f1e6" stroke="#14110f" stroke-width="5"/>'
+                       f'<text x="150" y="76" text-anchor="middle" font-family="{FONT}" font-weight="800" font-size="46" fill="#1d1a17">Я всё знал.</text></g>')
+            return p.svg(overlay=ov + caption(t), **kw)
+        ww = (u - 0.75) / 0.25
+        c = cam(*kv([(0, (-0.6, 1.5, -1.25, 0, .04, 1080)), (1, (-0.6, 1.5, -1.45, 0, .04, 1180))], ww)); shake(c, t, 0.35 * max(0, 1 - ww * 3))
+        p = I.bunker(c, hatch_open=True, red=True, torch=True)
+        actor(p, "hero", [(0, -0.6, -2.3)], u, dur, t, faces=[(0, "shocked")], rim=rim)
+        return p.svg(overlay=redov + caption(t), **kw)
 
     if i in (7, 10):  # вид снизу в люк: фонарик и соседи
         appear = (S(7, .08), S(7, .25), S(7, .42)) if i == 7 else (-9, -9, -9)
@@ -443,14 +501,19 @@ def frame(t):
         ov += '<rect width="1080" height="1920" fill="#e8c890" opacity=".22" style="mix-blend-mode:multiply"/>' + pill(t, S(8, .02), S(8, 1), "ГОД НАЗАД", "y", 0)
         return p.svg(sky="#9cc4e0", particles=None, vignette=0.5, grain=0, overlay=ov + caption(t))
 
-    # i == 9: расчёт у стеллажа
-    c = cam(*kv([(0, (0.1, 1.2, 0.6, 0, .05, 760)), (1, (-0.1, 1.2, 0.15, 0, .05, 760))], u))
-    p = I.bunker(c); family(p, u, t, stand_at=(-9, -9, -9, -9))
-    actor(p, "hero", [(0, -0.5, -2.9), (0.6, -0.4, -1.5)], u, dur, t, faces=[(0, "worried"), (0.6, "sad")])
+    # i == 9: расчёт: идёт к камере, затем лицо крупно
     ov = (pill(t, S(9, .08), S(9, 1), "+3 СОСЕДА", "w", 0) + pill(t, S(9, .3), S(9, 1), "11 000 ÷ (9 × 3)", "w", 1)
           + pill(t, S(9, .55), S(9, 1), "≈ 13 МЕСЯЦЕВ", "r", 2))
+    if u < 0.6:
+        c = cam(*kv([(0, (0.1, 1.2, 0.6, 0, .05, 760)), (1, (-0.1, 1.2, 0.3, 0, .05, 760))], u / 0.6))
+        p = I.bunker(c); family(p, u, t, stand_at=(-9, -9, -9, -9))
+        actor(p, "hero", [(0, -0.5, -3.0), (1.0, -0.4, -1.5)], u / 0.6, 1, t, faces=[(0, "worried")])
+        return p.svg(overlay=ov + caption(t), **kw)
+    w = (u - 0.6) / 0.4
+    c = cam(*kv([(0, (-0.4, 1.5, -0.45, 0, .04, 1080)), (1, (-0.4, 1.5, -0.62, 0, .04, 1150))], w))
+    p = I.bunker(c); family(p, u, t, stand_at=(-9, -9, -9, -9))
+    actor(p, "hero", [(0, -0.4, -1.5)], u, dur, t, faces=[(0, "sad")])
     return p.svg(overlay=ov + caption(t), **kw)
-
 
 def up_view(t, appear, f=1000):
     c = cam(1.0, 1.4, -2.35, 0, 1.3, f)
@@ -522,6 +585,11 @@ def knocks_wav(path):
 
 
 WHIPS[:] = [S(2, .2), S(2, .46), S(2, .72)]
+for _i, _cs in enumerate(al["caps"]):
+    for _c in _cs:
+        for _k, (_w, _red) in enumerate(_c["w"]):
+            if _red:
+                KW.append(T0[_i] + _c["t0"] + (_c["t1"] - _c["t0"]) * _k / max(1, len(_c["w"])))
 
 
 def main():
@@ -534,20 +602,24 @@ def main():
         return
     tmp = os.path.join(HERE, "video", "_a_video.mp4")
     n = int(TOTAL * FPS)
-    pr = subprocess.Popen(["node", os.path.join(HERE, "render_frames.js"), tmp, str(FPS)], stdin=subprocess.PIPE)
+    pr = subprocess.Popen(["node", os.path.join(HERE, "render_frames.js"), tmp, str(FPS), str(SCALE)], stdin=subprocess.PIPE)
     for k in range(n):
         pr.stdin.write((json.dumps({"i": k, "svg": frame(k / FPS)}) + "\n").encode())
         if k % 120 == 0:
             print(f"кадр {k}/{n}", flush=True)
     pr.stdin.close(); pr.wait()
     kn = os.path.join(HERE, "video", "_knocks.wav"); knocks_wav(kn)
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-i", VOICE, "-i", kn,
-                    "-filter_complex", "[0:v]noise=alls=2:allf=t,format=yuv420p[v];[1:a]loudnorm=I=-14:TP=-1.5:LRA=11[va];[2:a]volume=0.7[k];[va][k]amix=inputs=2:duration=longest:normalize=0[a]",
-                    "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "slow", "-crf", "21", "-maxrate", "14M", "-bufsize", "28M", "-aq-mode", "3",
-                    "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-c:a", "aac", "-b:a", "192k",
-                    "-t", f"{TOTAL:.2f}", "-movflags", "+faststart", OUT], check=True)
+    common = ["-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-profile:v", "high", "-pix_fmt", "yuv420p", "-r", str(FPS), "-g", str(FPS * 2),
+              "-x264-params", "aq-mode=3:aq-strength=0.9:deblock=-1,-1", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
+              "-c:a", "aac", "-b:a", "256k", "-ar", "48000", "-t", f"{TOTAL:.2f}", "-movflags", "+faststart"]
+    af = "[1:a]loudnorm=I=-14:TP=-1.5:LRA=11[va];[2:a]volume=0.7[k];[va][k]amix=inputs=2:duration=longest:normalize=0[a]"
+    yt = OUT.replace(".mp4", "-youtube-1440p.mp4"); tt = OUT.replace(".mp4", "-tiktok-1080p.mp4")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-i", VOICE, "-i", kn, "-filter_complex", "[0:v]null[v];" + af,
+                    "-map", "[v]", "-map", "[a]", "-crf", "16", "-maxrate", "40M", "-bufsize", "80M", *common, yt], check=True)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-i", VOICE, "-i", kn, "-filter_complex", "[0:v]scale=1080:1920:flags=lanczos[v];" + af,
+                    "-map", "[v]", "-map", "[a]", "-crf", "17", "-maxrate", "20M", "-bufsize", "40M", *common, tt], check=True)
     os.remove(tmp)
-    print(OUT)
+    print(yt, tt)
 
 
 if __name__ == "__main__":
