@@ -58,13 +58,23 @@ def voice_timing(v, audio):
     en = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", log)]
     mids = [(a + b) / 2 for a, b in zip(st, en)]
     lens = [len(sc[2]) for sc in v["scenes"]]
-    tot, acc, bounds = sum(lens), 0, [0.0]
-    for L in lens[:-1]:
-        acc += L
-        want = acc / tot * T
-        near = [m for m in mids if abs(m - want) <= 1.5 and m > bounds[-1] + 1.0]
-        bounds.append(min(near, key=lambda m: abs(m - want)) if near else want)
-    bounds.append(T + 0.8)
+    tot = sum(lens)
+    cum = [sum(lens[:k]) for k in range(len(lens) + 1)]  # знаки до каждой границы
+    snap = [0.0] + [None] * (len(lens) - 1) + [T]
+    last = 0.0
+    for k in range(1, len(lens)):
+        want = cum[k] / tot * T
+        need = 0.65 * lens[k - 1] / tot * T  # сцена не короче 65% расчётной: паузы внутри фразы не берём
+        near = [m for m in mids if abs(m - want) <= 1.5 and m > last + max(1.0, need)]
+        if near:
+            snap[k] = last = min(near, key=lambda m: abs(m - want))
+    # границы без паузы рядом: делим отрезок между соседними найденными паузами по числу знаков
+    for k in range(1, len(lens)):
+        if snap[k] is None:
+            a = max(j for j in range(k) if snap[j] is not None)
+            b = min(j for j in range(k + 1, len(snap)) if snap[j] is not None)
+            snap[k] = snap[a] + (snap[b] - snap[a]) * (cum[k] - cum[a]) / (cum[b] - cum[a])
+    bounds = snap[:-1] + [T + 0.8]
     return [round(b - a, 3) for a, b in zip(bounds, bounds[1:])]
 
 
