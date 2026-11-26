@@ -148,14 +148,15 @@ window.R = function (t) {
 
 def page(scenes):
     body = []
+    uniq = lambda m, k: m.replace('id="', f'id="q{k}_').replace("url(#", f"url(#q{k}_")  # id не повторяются между слоями
     for i, s in enumerate(scenes):
         sc = lambda L: f"translateZ({DEPTH[L]}px) scale({(P - DEPTH[L]) / P * OVERSCAN[L]:.4f})"
-        parts = [f'<div class="pl fill" style="transform:{sc("fill")}">{s["svg"]}</div>']
+        parts = [f'<div class="pl fill" style="transform:{sc("fill")}">{uniq(s["svg"], f"{i}0")}</div>']
         if not s["outdoor"]:
-            parts.append(f'<div class="pl bg" style="transform:{sc("bg")}">{s["svg"]}</div>')
+            parts.append(f'<div class="pl bg" style="transform:{sc("bg")}">{uniq(s["svg"], f"{i}1")}</div>')
             parts.append(f'<div class="floor" style="top:1364px;transform:translateZ({DEPTH["bg"]}px) rotateX(62deg)"></div>')
-        parts.append(f'<div class="pl mid" style="transform:{sc("mid")}">{s["svg"]}</div>')
-        parts.append(f'<div class="pl fg" style="transform:{sc("fg")}">{s["svg"]}</div>')
+        parts.append(f'<div class="pl mid" style="transform:{sc("mid")}">{uniq(s["svg"], f"{i}2")}</div>')
+        parts.append(f'<div class="pl fg" style="transform:{sc("fg")}">{uniq(s["svg"], f"{i}3")}</div>')
         dots = "".join(f'<div class="d" style="width:{r:.1f}px;height:{r:.1f}px;opacity:{0.15 + r / 25:.2f}" data-x="{x:.0f}" data-y="{y:.0f}" data-sp="{sp:.1f}" data-z="{[260, -320][k % 2]}"></div>'
                        for k, (x, y, r, sp) in enumerate(s["dust"]))
         parts.append(f'<div class="dust">{dots}</div>')

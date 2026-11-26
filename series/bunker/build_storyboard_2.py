@@ -40,6 +40,10 @@ def crates(y, n=6, missing=None):
     return s
 
 
+import art as _art2
+crates, bottle = _art2.crates, _art2.bottle
+
+
 def d1():
     s = room() + lamp()
     xs = (28, 70, 112, 150, 186, 222, 258, 296, 332)

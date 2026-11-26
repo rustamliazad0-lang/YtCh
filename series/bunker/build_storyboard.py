@@ -224,6 +224,15 @@ def bubble(x, y, w, h, text, fill="#fff", color="#111", tail="l", size=17):
     return s
 
 
+import art as _art  # детальная рисовка: люди, бункер, предметы
+person, room, lamp, barrel, generator = _art.person, _art.room, _art.lamp, _art.barrel, _art.generator
+_door_plain = door
+
+
+def door(cx=180, cy=250, r=130, open_=False):
+    return _door_plain(cx, cy, r, open_) + _art.door_extra(cx, cy, r)
+
+
 def _tag(fn, layer, extra=""):
     """Помечает слой для 3D-рендера (motion.py): bg = стены и свет, fg = люди, cap = плашка субтитра.
     Всё без метки идёт в средний план (предметы, цифры). На PNG-раскадровку не влияет."""
@@ -390,7 +399,7 @@ def c4():
 
 
 def c5():
-    s = room() + lamp() + f'<rect x="150" y="250" width="130" height="130" rx="10" fill="#3b424c" stroke="#7a8594" stroke-width="4"/>' + t(215, 322, "фильтр", 18, "#cfd6de", "normal")
+    s = room() + lamp() + _art.fvu(150, 250, 130, 130)
     s += f'<line x1="280" y1="315" x2="320" y2="315" stroke="#aaa" stroke-width="8"/><circle cx="320" cy="315" r="30" fill="none" stroke="{AMB}" stroke-width="6" stroke-dasharray="12 8"/><circle cx="345" cy="315" r="9" fill="{AMB}"/>'
     s += person(80, 500, "hero", 1.0, arm_up=True, mood="pain") + t(180, 110, "вручную", 56, AMB)
     return s + caption(["Крутишь фильтр", "вручную"])
