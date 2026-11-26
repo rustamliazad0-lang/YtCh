@@ -16,6 +16,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "video")
 import build_storyboard_4 as B4
 ALL = {v["slug"]: v for v in B1.VIDEOS + B2.VIDEOS2 + B4.VIDEOS60}  # минутные версии с постановкой перекрывают старые
+import build_img_A as BIA
+ALL.update({v["slug"]: v for v in BIA.VIDEOS})  # A на иллюстрациях
 P = 1500  # перспектива, px
 DEPTH = {"fill": -1100, "bg": -520, "mid": -180, "fg": 0}
 OVERSCAN = {"fill": 1.35, "bg": 1.2, "mid": 0.9, "fg": 1.0}
@@ -128,7 +130,10 @@ def plan(v, al):
         d = al["d"][i]
         cam = names[i % len(names)]
         shots = [{"t0": 0.0, "t1": d, "cam": CAMS[cam]}]
-        if d >= 4:
+        if len(sc) > 6 and sc[6]:  # планы заданы сценой (иллюстрации): делим сцену поровну
+            k = len(sc[6])
+            shots = [{"t0": round(d * j / k, 3), "t1": round(d * (j + 1) / k, 3), "cam": sc[6][j]} for j in range(k)]
+        elif d >= 4:
             cut = round(d * 0.55, 2)
             other = CAMS[names[(i + 3) % len(names)]]  # второй план: другой ракурс, а не приближение
             shots = [{"t0": 0.0, "t1": cut, "cam": CAMS[cam]}, {"t0": cut, "t1": d, "cam": other}]
