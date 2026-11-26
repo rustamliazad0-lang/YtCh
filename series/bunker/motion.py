@@ -14,7 +14,8 @@ import build_storyboard_2 as B2
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "video")
-ALL = {v["slug"]: v for v in B1.VIDEOS + B2.VIDEOS2}
+import build_storyboard_3 as B3
+ALL = {v["slug"]: v for v in B1.VIDEOS + B2.VIDEOS2 + B3.VIDEOS60}  # минутные версии перекрывают старые
 P = 1500  # перспектива, px
 DEPTH = {"fill": -1100, "bg": -520, "mid": -180, "fg": 0}
 OVERSCAN = {"fill": 1.35, "bg": 1.2, "mid": 0.9, "fg": 1.0}
