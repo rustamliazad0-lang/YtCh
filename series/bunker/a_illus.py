@@ -399,8 +399,8 @@ def main():
     pr.stdin.close(); pr.wait()
     kn = os.path.join(HERE, "video", "_knocks.wav"); knocks_wav(kn)
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-i", VOICE, "-i", kn,
-                    "-filter_complex", "[0:v]noise=alls=5:allf=t,format=yuv420p[v];[1:a]loudnorm=I=-14:TP=-1.5:LRA=11[va];[2:a]volume=0.7[k];[va][k]amix=inputs=2:duration=longest:normalize=0[a]",
-                    "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "slow", "-crf", "19", "-aq-mode", "3",
+                    "-filter_complex", "[0:v]noise=alls=2:allf=t,format=yuv420p[v];[1:a]loudnorm=I=-14:TP=-1.5:LRA=11[va];[2:a]volume=0.7[k];[va][k]amix=inputs=2:duration=longest:normalize=0[a]",
+                    "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "slow", "-crf", "21", "-maxrate", "14M", "-bufsize", "28M", "-aq-mode", "3",
                     "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-c:a", "aac", "-b:a", "192k",
                     "-t", f"{TOTAL:.2f}", "-movflags", "+faststart", OUT], check=True)
     os.remove(tmp)
