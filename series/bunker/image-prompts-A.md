@@ -1,25 +1,72 @@
-# Бункер A: промпты для картинок (стиль ролика про гаражи)
+# Бункер A: промпты (реалистичный 3D-фон + 2D-персонажи)
 
-Генерировать в 9:16. Текста на картинках нет: субтитры, цифры и движение камеры добавляет `motion.py`.
-Герой в каждом промпте описан одинаково. Если генератор умеет «референс», прикладывать первую удачную картинку героя ко всем следующим.
+Правило стиля: фон фотореалистичный 3D, персонажи 2D с жирным контуром, простым лицом, реалистичной одеждой; мимика меняется по сцене. Фоны и персонажи генерируются **отдельно**: фон без людей, каждый персонаж отдельной картинкой на прозрачном фоне. Я накладываю персонажей на фон и двигаю их (шаг, лестница, смена выражения).
 
-**Общий стиль (вставлять в каждый промпт):**
-flat 2D cartoon illustration, muted cinematic palette, soft gradient lighting, thin dark outlines, highly detailed environment and props, gloomy cozy mood, Eastern European winter, vertical 9:16, no text, no letters
+Формат: фоны 9:16; персонажи PNG с прозрачным фоном, в полный рост. Текста нигде нет.
+Чтобы персонаж был одинаковым, приложи к каждой следующей генерации первую удачную картинку этого персонажа как образец.
 
-**Герой (вставлять, где он в кадре):**
-a man in his 30s with a big round pale head, small half-closed tired dot eyes, light stubble, short dark hair, blue padded quilted work jacket with an orange reflective stripe, dark work trousers, tan work boots, black mittens
+## Общие блоки
 
-**Бункер (вставлять в сцены внутри):**
-small underground bunker under a village garage, concrete panel walls with bolts, ventilation duct and cables along the ceiling, metal shelves with canned food and boxes, fire extinguisher, round steel hatch in the ceiling with a vertical metal ladder down to the floor, warm caged lamp
+**ФОН (вставлять в каждый фон):**
+photorealistic 3D render, cinematic lighting, realistic detailed textures, shallow depth of field, Unreal Engine look, empty scene, no people, vertical 9:16, no text, no letters
 
-1. **Стук (0:00).** Low angle from the bunker floor looking up at the round steel ceiling hatch at the top of the ladder, the hatch lid vibrating from knocks, dust falling, the hero standing at the bottom of the ladder looking up, worried. + стиль, герой, бункер
-2. **Сообщение (0:07).** Close-up of the hero's hands in black mittens holding a smartphone in the dark bunker, the screen glowing with two message bubbles (no readable text), ceiling hatch blurred in the background. + стиль, бункер
-3. **У люка, воспоминание (0:15).** The hero standing at the foot of the ladder under the ceiling hatch, looking up and thinking; above his head a soft dreamy inset showing him a year ago carrying small bags of canned food out of different shops on a snowy village street. + стиль, герой, бункер
-4. **Пересчёт семьи (0:23).** Wide shot of the bunker: a family of five sitting on a wooden bench under the lamp (grandfather in ushanka and grey quilted vest, mother in a mustard knitted cardigan with long brown hair, the hero, two kids in red puffer jackets and beanies), an empty sixth spot at the end of the bench. + стиль, герой, бункер
-5. **Вода, воздух, свет (0:30).** Top-down view of the bunker floor: a water barrel connected to a well pipe, a ventilation filter unit, a small generator in a separate room with an exhaust pipe through the wall. + стиль, бункер
-6. **Ты открываешь (0:36).** The hero climbing the ladder, one hand turning the wheel of the ceiling hatch, view from below, red siren light starting to leak through the gap. + стиль, герой, бункер
-7. **Друг спускается (0:38).** View from the bunker floor: a man in a military camouflage jacket and cap climbing down the ladder from the open ceiling hatch, red siren light pouring down from above, the hero watching from the side. + стиль, герой, бункер
-8. **Соседи наверху (0:46).** Extreme low angle looking straight up through the open round ceiling hatch: three neighbors in winter jackets (purple, green, brown) standing at the edge in the garage above, lit by red siren light, their faces in shadow, snow falling. + стиль
-9. **Забор, год назад (0:49).** Warm sunset on a snowy village street, the hero and a neighbor waving to each other over a wooden fence, garages and power lines behind. + стиль, герой
-10. **Если пустить и их (0:52).** The bunker storage shelf full of canned food, three dark silhouettes of people standing at the foot of the ladder in red light, a feeling of the food being divided. + стиль, бункер
-11. **Вопрос (0:56).** View from below up the ladder to the open hatch, the three neighbors' silhouettes looking down into the bunker, red siren glow, tense mood, empty space in the lower half for text. + стиль, бункер
+**ПЕРСОНАЖ (вставлять в каждого персонажа):**
+2D cartoon character, bold thick black outlines, flat cel shading, simple face with dot eyes and simple eyebrows and mouth, realistic detailed clothing with fabric folds, seams, zippers and wear, full body, transparent background, no text
+
+**БУНКЕР:**
+small underground bunker under a village garage, concrete panel walls with bolts, ventilation duct and cables along the ceiling, metal shelves with canned food and boxes, fire extinguisher, round steel hatch in the ceiling with a vertical metal ladder down to the floor, caged lamp with warm light
+
+## Фоны (7 штук, без людей)
+
+- **Ф1. Под люком.** Low angle from the bunker floor looking up at the round steel ceiling hatch and the vertical ladder, warm caged lamp, dust in the air. + ФОН + БУНКЕР
+- **Ф2. Главная комната.** Wide view of the bunker room with a long empty wooden bench along the wall under the lamp, shelves with canned food, ladder to the ceiling hatch on the right. + ФОН + БУНКЕР
+- **Ф3. Запасы.** The bunker technical corner: a blue water tank with a pipe from a well, a ventilation filter unit with a hand crank, a door to a small generator room with an exhaust pipe through the wall. + ФОН + БУНКЕР
+- **Ф4. Люк открыт.** Low angle at the open ceiling hatch, the lid flipped up, red siren light pouring down the ladder into the dark bunker. + ФОН + БУНКЕР
+- **Ф5. Вид вверх.** Extreme low angle straight up the ladder through the open round hatch into a dark village garage above: wooden roof beams, a hanging lamp glowing red, open garage door with snow falling outside at night. + ФОН
+- **Ф6. Забор, год назад.** Snowy Eastern European village street at warm sunset, a wooden fence between two yards, garages and power lines, soft golden light. + ФОН
+- **Ф7. Склад.** Close view of bunker storage shelves full of canned food and wooden crates, a clipboard with a pencil hanging on a nail. + ФОН + БУНКЕР
+
+## Персонажи (каждый отдельной картинкой, на прозрачном фоне)
+
+**Герой:** a man in his 30s with a round head, short dark hair, light stubble, blue padded quilted work jacket with an orange reflective stripe, dark work trousers, tan work boots, black mittens. + ПЕРСОНАЖ
+- Г1 standing, looking up, worried face
+- Г2 standing, holding a smartphone and looking at the screen, sad face
+- Г3 standing, thinking, hand on chin
+- Г4 sitting on a bench, thinking face, side view three-quarters
+- Г5 climbing a ladder, back three-quarters view, reaching up with one hand, determined face
+- Г6 standing, shocked face, mouth open
+- Г7 standing, waving with a smile
+
+**Друг:** a man in his 30s in a military camouflage jacket and trousers, camouflage cap, army boots. + ПЕРСОНАЖ
+- Д1 climbing down a ladder, back view, looking over his shoulder, serious face
+- Д2 standing, saying something quietly, serious face
+
+**Семья (сидят на лавке):** + ПЕРСОНАЖ
+- С1 grandfather in an ushanka hat and grey quilted vest over a sweater, sitting, tired face
+- С2 mother with long brown hair in a mustard knitted cardigan, sitting, worried face
+- С3 boy about 10 in a red puffer jacket and blue beanie, sitting, scared face
+- С4 girl about 8 in a red puffer jacket and blue beanie, sitting, scared face
+
+**Соседи:** + ПЕРСОНАЖ
+- Н1 woman in a purple winter jacket with a fur hood, leaning forward and looking down, anxious face
+- Н2 man in an olive green parka, leaning forward and looking down, stern face
+- Н3 man in a brown winter jacket and grey beanie, leaning forward and looking down, desperate face
+- Н4 the woman from Н1 standing behind a fence and waving with a smile
+
+## Сборка сцен (что я накладываю)
+
+| # | Текст | Фон | Персонажи и действие |
+|---|---|---|---|
+| 1 | «...А в люк стучит шестой» | Ф1 | Г1 входит под люк; крышка дрожит (тряска кадра) |
+| 2 | «Сирены стихли. Это друг...» | Ф1 | Г2, на телефоне появляются сообщения |
+| 3 | «Ты стоишь у люка и считаешь...» | Ф1 | Г3 у лестницы, облако мыслей с чеками |
+| 4 | «...на шестерых: двадцать месяцев» | Ф2 | С1, С2, Г4, С3, С4 на лавке, шестое место пустое |
+| 5 | «Вода из скважины, воздух идёт...» | Ф3 | Г3 (облегчение), значки по очереди |
+| 6 | «Ты открываешь» | Ф1 → Ф4 | Г5 лезет вверх, свет сверху |
+| 7 | «Друг заходит один... я всё знал» | Ф4 | Д1 спускается, затем Д2; Г6 смотрит |
+| 8 | «За ним в свете сирен стоят люди...» | Ф5 | Н1, Н2, Н3 появляются по одному у края люка |
+| 9 | «...махал через забор» | Ф6 | Г7 и Н4 машут |
+| 10 | «Трое. Если пустить и их...» | Ф7 | Н1–Н3 полупрозрачные силуэты, цифра 13 месяцев |
+| 11 | «Друга ты пустил. А их?» | Ф5 | Н1–Н3 смотрят вниз, кнопки ДА/НЕТ |
+
+Итого: 7 фонов + 17 персонажей = 24 картинки на ролик A. Названия файлов при отправке не важны, я разберу по содержимому.

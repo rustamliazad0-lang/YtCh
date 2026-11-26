@@ -21,6 +21,15 @@ def pic(name, red=False, over=""):
     return fn
 
 
+def sprite(name, x, y, h, aid, flip=False):
+    """2D-персонаж (PNG с прозрачным фоном) поверх 3D-фона: x, y = точка ступней на кадре 360x640,
+    h = рост в единицах кадра. aid: метка для действий движка (шаг, подъём, появление, смена выражения)."""
+    w = h  # ширину держим квадратной рамкой, картинка вписывается по высоте
+    tr = f' transform="translate({2*x} 0) scale(-1 1)"' if flip else ""
+    return (f'<g data-a="{aid}" data-l="fg"><image href="file://{IMG}/{name}" x="{x - w/2}" y="{y - h}" width="{w}" height="{h}" '
+            f'preserveAspectRatio="xMidYMax meet"{tr}/></g>')
+
+
 def cam(fx, fy, z):
     """Фокус камеры на точке картинки и приближение (z: 0 = весь кадр, 700 ≈ x1,5).
     Сдвиг ограничен так, чтобы картинка всегда закрывала кадр (края не видны)."""
