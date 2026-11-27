@@ -70,7 +70,7 @@ def cam(x, y, z, yaw=0.0, pitch=0.0, f=760):
 
 
 def shake(c, t, e):
-    c.vx += math.sin(t * 95) * 16 * e; c.vy += math.cos(t * 80) * 12 * e
+    c.vx += math.sin(t * 31) * 18 * e; c.vy += math.cos(t * 23) * 12 * e   # тряска ~4-5 Гц: плавно при 30 к/с, без мелькания
 
 
 def walk(path, u, dur):
@@ -282,8 +282,8 @@ def family(pic, u, t, stand_at=None, rim="#ffd59a", faces=None):
 def knock_env(t):
     e = 0.0
     for a in KNOCKS:
-        if a <= t < a + 0.25:
-            e = max(e, 1 - (t - a) / 0.25)
+        if a <= t < a + 0.35:
+            e = max(e, (1 - (t - a) / 0.35) ** 2)
     return e
 
 
@@ -601,7 +601,15 @@ def main():
         subprocess.run(["node", os.path.join(HERE, "render_frames.js"), "--png", *fs], check=True)
         return
     tmp = os.path.join(HERE, "video", "_a_video.mp4")
-    n = int(TOTAL * FPS)
+    n = int(TOTAL * FPS); k0 = 0
+    if "--range" in sys.argv:  # быстрый тест куска без звука
+        a, b = [float(x) for x in sys.argv[sys.argv.index("--range") + 1].split(",")]
+        k0, n = int(a * FPS), int(b * FPS)
+        tmp = os.path.join(HERE, "video", "_range.mp4")
+        pr = subprocess.Popen(["node", os.path.join(HERE, "render_frames.js"), tmp, str(FPS), str(SCALE)], stdin=subprocess.PIPE)
+        for k in range(k0, n):
+            pr.stdin.write((json.dumps({"i": k - k0, "svg": frame(k / FPS)}) + "\n").encode())
+        pr.stdin.close(); pr.wait(); print(tmp); return
     pr = subprocess.Popen(["node", os.path.join(HERE, "render_frames.js"), tmp, str(FPS), str(SCALE)], stdin=subprocess.PIPE)
     for k in range(n):
         pr.stdin.write((json.dumps({"i": k, "svg": frame(k / FPS)}) + "\n").encode())
