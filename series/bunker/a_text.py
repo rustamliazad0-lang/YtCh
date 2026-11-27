@@ -34,7 +34,7 @@ BEATS = [
     ("cut_intro", "ДЕНЬ 365. / СИРЕНЫ *СТИХЛИ*. / СЕМЬЯ ВНИЗУ. / ЛЮК ЗАКРЫТ.", dict(hud="ДЕНЬ 365", tag=("ЛЮК ЗАКРЫТ", "y"), hold=0.3)),
     ("knock", "ТУК. / ТУК. / ТУК.", dict(hud="ДЕНЬ 365", hold=0.2)),
     ("knock2", "«ОТКРЫВАЙ.» / «Я ВСЁ *ЗНАЛ*.»", dict(hud="ДЕНЬ 365", hold=0.3)),
-    ("hook", "ЕДЫ — / НА ПЯТЕРЫХ. / А СТУЧИТ / *ШЕСТОЙ*.", dict(hud="ДЕНЬ 365", tag=("4. ЕДА", "r"))),
+    ("hook", "ЕДЫ / НА ПЯТЕРЫХ. / А СТУЧИТ / *ШЕСТОЙ*.", dict(hud="ДЕНЬ 365", tag=("4. ЕДА", "r"))),
     ("phone", "ЭТО МАКС. / ТОТ САМЫЙ, / ЧТО ГОД НАЗАД / НАПИСАЛ *НОЧЬЮ*.", dict(hud="ДО ВОЙНЫ: 365 ДН.", hold=0.6)),
     ("count", "ТЫ СТОИШЬ / У ЛЮКА / И *СЧИТАЕШЬ*.", dict(hud="ДЕНЬ 365", tag=("4. ЕДА", "r"))),
     ("market", "ЦЕЛЫЙ ГОД / ТЫ ВОЗИЛ ЕДУ / ПО ОДНОМУ *ПАКЕТУ*", dict(hud="ДО ВОЙНЫ: 214 ДН.", tag=("4. ЕДА", "r"), place="РЫНОК")),
@@ -49,8 +49,8 @@ BEATS = [
     ("shock", "И ТЫ ПОНИМАЕШЬ: / ЗНАЛ / *НЕ ОН ОДИН*.", dict(hud="ДЕНЬ 365")),
     ("up", "ЗА НИМ / В СВЕТЕ СИРЕН / СТОЯТ *ЛЮДИ*. / ЭТО СОСЕДИ.", dict(hud="ДЕНЬ 365", tag=("СОСЕДИ", "r"))),
     ("village", "ТЕ, КОМУ ТЫ / ЦЕЛЫЙ ГОД / *МАХАЛ* / ЧЕРЕЗ ЗАБОР.", dict(hud="ДО ВОЙНЫ: 300 ДН.")),
-    ("calc2", "ТРОЕ. / ЕСЛИ ПУСТИТЬ / И ИХ — / ЕДЫ НА *13 МЕСЯЦЕВ*.", dict(hud="ДЕНЬ 365", tag=("4. ЕДА", "r"))),
-    ("end", "МАКСА / ТЫ ПУСТИЛ. / А ИХ?", dict(hud="ДЕНЬ 365", tag=("СОСЕДИ", "r"), hold=3.0)),
+    ("calc2", "ТРОЕ. / ЕСЛИ ПУСТИТЬ / И ИХ, / ЕДЫ ХВАТИТ / НА *13 МЕСЯЦЕВ*.", dict(hud="ДЕНЬ 365", tag=("4. ЕДА", "r"))),
+    ("end", "МАКСА / ТЫ ПУСТИЛ. / А ИХ? / ПИШИ: / ДА ИЛИ НЕТ.", dict(hud="ДЕНЬ 365", tag=("СОСЕДИ", "r"), hold=3.0)),
 ]
 
 
@@ -58,15 +58,122 @@ def chunk_dur(c):
     return max(0.72, 0.32 + 0.058 * len(c.replace("*", "")))
 
 
-TL = []  # (сцена, t0, t1, опции, [(t0, t1, кусок)])
-_t = 0.0
-for name, text, opt in BEATS:
-    parts = [p.strip() for p in text.split("/")]
-    cs = []
-    for p in parts:
-        d = chunk_dur(p); cs.append((_t, _t + d, p)); _t += d
-    end = _t + opt.get("hold", 0.25)
-    TL.append((name, cs[0][0], end, opt, cs)); _t = end
+VOICE = os.path.join(HERE, "video", "voice-A2.mp3")
+SPOKEN = {"365.": "триста шестьдесят пять", "11": "одиннадцать", "000": "тысяч", "*20": "двадцать", "24.": "двадцать четыре", "*4": "четыре", "*13": "тринадцать"}
+VOW = "аеёиоуыэюя"
+
+
+def syl_chunk(c):
+    n = 0.0
+    for w in c.replace("—", " ").split():
+        w = SPOKEN.get(w, w)
+        n += sum(max(1, sum(ch in VOW for ch in x.lower())) + 0.35 for x in w.split())
+    return n
+
+
+def voiced_intervals(audio):
+    T = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", audio], capture_output=True, text=True).stdout)
+    log = subprocess.run(["ffmpeg", "-hide_banner", "-i", audio, "-af", "silencedetect=noise=-35dB:d=0.18", "-f", "null", "-"], capture_output=True, text=True).stderr
+    import re
+    st_ = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", log)]; en_ = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", log)]
+    voiced, cur = [], 0.0
+    for a, b in zip(st_, en_ + [T] * (len(st_) - len(en_))):
+        if a > cur + 0.02:
+            voiced.append((cur, a))
+        cur = max(cur, b)
+    if cur < T - 0.02:
+        voiced.append((cur, T))
+    return T, voiced
+
+
+def build_tl():
+    """С голосом: куски текста раскладываются по звучащим участкам пропорционально слогам; начало фразы после точки/запятой
+    притягивается к началу звучащего участка. Удары в люк (такт knock) стоят в паузе перед «Открывай». Без голоса — темп чтения."""
+    tl = []
+    if not os.path.exists(VOICE):
+        t = 0.0
+        for name, text, opt in BEATS:
+            cs = []
+            for p_ in [x.strip() for x in text.split("/")]:
+                d = chunk_dur(p_); cs.append([t, t + d, p_]); t += d
+            end = t + opt.get("hold", 0.25); tl.append((name, cs[0][0], end, opt, cs)); t = end
+        return tl, t
+    T, voiced = voiced_intervals(VOICE)
+    chunks = [(bi, p_.strip()) for bi, (name, text, opt) in enumerate(BEATS) if name != "knock" for p_ in text.split("/")]
+    # фразы: куски до знака препинания; каждой фразе — подряд идущие звучащие участки (динамика по длительности)
+    phrases, cur = [], []
+    for k, (bi, c) in enumerate(chunks):
+        cur.append(k)
+        if c.replace("*", "").rstrip("»").endswith((".", "?", "!")):   # фраза = предложение
+            phrases.append(cur); cur = []
+    if cur:
+        phrases.append(cur)
+    W = [sum(syl_chunk(chunks[k][1]) for k in ph) for ph in phrases]
+    rate = sum(b - a for a, b in voiced) / sum(W)
+    n, m = len(voiced), len(phrases); INF = 1e18
+    # dp[j][e]: первые j фраз заняли первые e участков; шаг — группа из 1..4 фраз на 1..6 участков подряд
+    dp = [[INF] * (n + 1) for _ in range(m + 1)]; bk = [[None] * (n + 1) for _ in range(m + 1)]; dp[0][0] = 0.0
+    for j_ in range(m):
+        for st in range(n):
+            if dp[j_][st] >= INF:
+                continue
+            for g in range(1, 5):
+                if j_ + g > m:
+                    break
+                wsum = sum(W[j_:j_ + g])
+                for e in range(st + 1, min(n, st + 6) + 1):
+                    dur = voiced[e - 1][1] - voiced[st][0]
+                    c_ = dp[j_][st] + (dur - rate * wsum) ** 2 + 2.5 * (g - 1)
+                    if c_ < dp[j_ + g][e]:
+                        dp[j_ + g][e], bk[j_ + g][e] = c_, (j_, st)
+    groups, j_, e = [], m, n
+    while j_ > 0:
+        pj, st = bk[j_][e]; groups.append((pj, j_, voiced[st][0], voiced[e - 1][1])); j_, e = pj, st
+    groups.reverse()
+    phrases2, spans = [], []
+    for pj, j2, a, b in groups:
+        phrases2.append([k for ph in phrases[pj:j2] for k in ph]); spans.append((a, b))
+    phrases = phrases2
+    starts = [0.0] * len(chunks)
+    for ph, (a, b) in zip(phrases, spans):
+        ws = [syl_chunk(chunks[k][1]) for k in ph]; acc = 0.0
+        for k, w in zip(ph, ws):
+            starts[k] = a + (b - a) * acc / sum(ws); acc += w
+    vstarts = [a for a, b in voiced]
+    for k in range(1, len(chunks)):  # начало предложения притягиваем к началу звучащего куска рядом
+        if chunks[k - 1][1].replace("*", "").rstrip("»").endswith((".", "?", ":")):
+            near = min(vstarts, key=lambda a: abs(a - starts[k]))
+            if abs(near - starts[k]) < 1.0 and near > starts[k - 1] + 0.3:
+                starts[k] = near
+    for k in range(1, len(chunks)):
+        starts[k] = max(starts[k], starts[k - 1] + 0.25)
+    starts = [max(0.0, x - 0.05) for x in starts]
+    kb = next(i for i, b in enumerate(BEATS) if b[0] == "knock")
+    after = next(k for k, c in enumerate(chunks) if c[0] > kb)
+    g0 = max(b for (a, b) in spans if b <= starts[after] + 0.1); g1 = starts[after] + 0.05
+    knock_t = [g0 + 0.2 + k * (g1 - g0 - 0.45) / 3 for k in range(3)]
+    flat = []
+    ci = 0
+    for bi, (name, text, opt) in enumerate(BEATS):
+        parts = [x.strip() for x in text.split("/")]
+        if name == "knock":
+            flat += [[bi, knock_t[k], parts[k]] for k in range(3)]
+        else:
+            for p_ in parts:
+                flat.append([bi, starts[ci], p_]); ci += 1
+    flat.sort(key=lambda x: x[1])
+    end_all = T + BEATS[-1][2].get("hold", 2.5) * 0.6
+    for k, (bi, t0, p_) in enumerate(flat):
+        t1 = flat[k + 1][1] if k + 1 < len(flat) else end_all
+        flat[k] = [bi, t0, t1, p_]
+    for bi, (name, text, opt) in enumerate(BEATS):
+        cs = [[t0, t1, p_] for b_, t0, t1, p_ in flat if b_ == bi]
+        tl.append((name, cs[0][0], cs[-1][1], opt, cs))
+    tl = [(n, (0.0 if k == 0 else a), b, o, c) for k, (n, a, b, o, c) in enumerate(tl)]
+    return tl, end_all
+
+
+TL, _t = build_tl()
 TOTAL = _t
 CUTS = [b[1] for b in TL[1:]]
 WHIPS = [TL[k][1] for k in range(1, len(TL)) if TL[k][0] in ("market", "super", "pharm", "calc", "phone", "count", "village", "calc2", "tech")]
@@ -283,6 +390,95 @@ def frame(t):
     return WHIP(svg, t)
 
 
+# ---------- звуки (немного, только на важных движениях) ----------
+def build_sfx(path, sr=48000):
+    import numpy as np, wave
+    n = int((TOTAL + 0.5) * sr); out = np.zeros(n)
+    rng = np.random.default_rng(1)
+
+    def add(t0, x, g=1.0):
+        i = int(t0 * sr)
+        if i >= n:
+            return
+        x = x[: n - i]; out[i:i + len(x)] += g * x
+
+    def env(d, a=0.005, k=8.0):
+        t = np.arange(int(d * sr)) / sr
+        return t, np.minimum(1, t / a) * np.exp(-k * t)
+
+    def lowpass(x, k=12):
+        return np.convolve(x, np.ones(k) / k, mode="same")
+
+    def thud():  # глухой удар по стальному люку
+        t, e = env(0.6, 0.002, 9)
+        x = 0.9 * np.sin(2 * np.pi * 58 * t) + 0.25 * np.sin(2 * np.pi * 116 * t)
+        x += 0.18 * np.sin(2 * np.pi * 412 * t) * np.exp(-22 * t) + 0.12 * np.sin(2 * np.pi * 873 * t) * np.exp(-30 * t)
+        x += 0.35 * lowpass(rng.normal(size=len(t)), 40) * np.exp(-40 * t)
+        return x * e
+
+    def clank():  # лязг запоров и тяжёлой крышки
+        t, e = env(1.2, 0.002, 4)
+        x = sum(a * np.sin(2 * np.pi * f * t) * np.exp(-k * t) for f, a, k in ((523, .5, 5), (1187, .35, 7), (1840, .25, 9), (2550, .15, 12), (90, .6, 6)))
+        return x * e + 0.3 * lowpass(rng.normal(size=len(t)), 6) * np.exp(-25 * t)
+
+    def creak(d=0.8):  # скрип петли
+        t = np.arange(int(d * sr)) / sr
+        f = 180 + 120 * t / d + 15 * np.sin(2 * np.pi * 7 * t)
+        x = np.sign(np.sin(2 * np.pi * np.cumsum(f) / sr)) * 0.25 + 0.15 * np.sin(2 * np.pi * np.cumsum(f * 2.01) / sr)
+        return lowpass(x, 8) * np.sin(np.pi * t / d) ** 1.5
+
+    def ping():  # уведомление в мессенджере
+        t, e = env(0.35, 0.003, 14)
+        return (0.6 * np.sin(2 * np.pi * 1318 * t) + 0.4 * np.sin(2 * np.pi * 1760 * t) * (t > 0.07)) * e
+
+    def whoosh(d=0.32):  # резкий переход
+        t = np.arange(int(d * sr)) / sr
+        x = rng.normal(size=len(t)); x = lowpass(x, 5) - lowpass(x, 60)
+        return x * np.sin(np.pi * t / d) ** 2
+
+    def boom(d=1.8):  # низкий удар на шоке и в финале
+        t, e = env(d, 0.004, 2.6)
+        return (np.sin(2 * np.pi * (46 - 8 * t) * t) + 0.3 * lowpass(rng.normal(size=len(t)), 60)) * e
+
+    def drip():
+        t, e = env(0.18, 0.001, 30)
+        return np.sin(2 * np.pi * (900 + 1400 * np.exp(-30 * t)) * t) * e
+
+    def hum(d, f0=50):  # ровный гул вентиляции/генератора
+        t = np.arange(int(d * sr)) / sr
+        x = 0.6 * np.sin(2 * np.pi * f0 * t) + 0.3 * np.sin(2 * np.pi * 2 * f0 * t) + 0.12 * lowpass(rng.normal(size=len(t)), 30)
+        fade = np.minimum(1, np.minimum(t / 0.4, (d - t) / 0.5))
+        return x * np.clip(fade, 0, 1)
+
+    def siren_tail(d=1.4):  # сирена вдалеке затихает в самом начале
+        t = np.arange(int(d * sr)) / sr
+        f = 620 + 220 * np.sin(2 * np.pi * 0.7 * t)
+        return np.sin(2 * np.pi * np.cumsum(f) / sr) * (1 - t / d) ** 2
+
+    B = {b[0]: b for b in TL}
+    add(0.0, siren_tail(), 0.08)
+    for c0, c1, p_ in B["knock"][4]:
+        add(c0, thud(), 0.9)
+    for c0, c1, p_ in B["phone"][4][:3]:
+        add(c0 + 0.1, ping(), 0.18)
+    for w in WHIPS:
+        add(w - 0.16, whoosh(), 0.12)
+    tb = B["tech"]; cs = tb[4]
+    add(cs[0][0], hum(tb[2] - cs[0][0], 62), 0.07)                 # вентилятор ФВУ
+    for k in range(3):
+        add(cs[1][0] + 0.1 + k * 0.33, drip(), 0.12)                # капли из скважины
+    add(cs[2][0], hum(tb[2] - cs[2][0] + 0.2, 38), 0.1)            # генератор
+    cb = B["climb"]; t_open = cb[1] + 0.45 * (cb[2] - cb[1])
+    add(t_open - 0.35, clank(), 0.35); add(t_open, creak(), 0.18)
+    add(B["shock"][4][-1][0], boom(), 0.35)
+    add(B["end"][4][-1][0] + 0.3, boom(1.4), 0.22)
+    peak = np.max(np.abs(out)) or 1.0
+    out = out / max(1.0, peak) * 0.9
+    with wave.open(path, "w") as wv:
+        wv.setnchannels(1); wv.setsampwidth(2); wv.setframerate(sr)
+        wv.writeframes((out * 32767).astype("<i2").tobytes())
+
+
 def main():
     if "--frames" in sys.argv:
         ts = [float(x) for x in sys.argv[sys.argv.index("--frames") + 1].split(",")]
@@ -308,10 +504,17 @@ def main():
               "-x264-params", "aq-mode=3:aq-strength=0.9:deblock=-1,-1", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
               "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart"]
     yt = OUT.replace(".mp4", "-youtube-1440p.mp4"); tt = OUT.replace(".mp4", "-tiktok-1080p.mp4")
-    sil = ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, *sil, "-map", "0:v", "-map", "1:a", "-crf", "16", "-maxrate", "40M", "-bufsize", "80M", *common, yt], check=True)
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, *sil, "-map", "0:v", "-map", "1:a", "-vf", "scale=1080:1920:flags=lanczos",
-                    "-crf", "17", "-maxrate", "20M", "-bufsize", "40M", *common, tt], check=True)
+    fx = os.path.join(HERE, "video", "_sfx_a2.wav"); build_sfx(fx)
+    if os.path.exists(VOICE):  # голос + звуки
+        aud = ["-i", VOICE, "-i", fx]
+        af = ["-filter_complex", "[1:a]loudnorm=I=-14:TP=-1.5:LRA=11,apad[v];[2:a]volume=1.0[f];[v][f]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[a]",
+              "-map", "0:v", "-map", "[a]"]
+    else:
+        aud = ["-i", fx]; af = ["-map", "0:v", "-map", "1:a"]
+    common = [c for c in common if c != "-shortest"] + ["-t", f"{TOTAL:.2f}"]
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, *aud, *af, "-crf", "16", "-maxrate", "40M", "-bufsize", "80M", "-b:a", "192k", *common, yt], check=True)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, *aud, *af, "-vf", "scale=1080:1920:flags=lanczos",
+                    "-crf", "17", "-maxrate", "20M", "-bufsize", "40M", "-b:a", "192k", *common, tt], check=True)
     os.remove(tmp); print(yt, tt, f"{TOTAL:.1f} с")
 
 
