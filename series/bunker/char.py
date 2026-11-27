@@ -537,7 +537,7 @@ def arms_front(pose, t=0.0, sh=(-112, -808)):
         "bags": [((-150, -460), "low"), ((150, -460), "low")],
         "money": [((-142, -452), "low"), ((150, -560), "side")],
         "phone": [((-142, -452), "low"), ((66, -920), "out")],
-        "climb": [((-122, -1110 - 50 * math.sin(t * 2 * math.pi)), "out"), ((122, -1110 + 50 * math.sin(t * 2 * math.pi)), "out")],
+        "climb": [((-118, -1070 - 50 * math.sin(t * 2 * math.pi)), "rail"), ((118, -1070 + 50 * math.sin(t * 2 * math.pi)), "rail")],
         "flashlight": [((-142, -452), "low"), ((40, -650), "side")],
     }[pose]
     out = []; dy = sh[1] + 808
@@ -547,6 +547,9 @@ def arms_front(pose, t=0.0, sh=(-112, -808)):
         if b == "side":  # плечо висит вдоль тела, локоть у бока, предплечье к зрителю (укорочено)
             sg = -1 if S[0] < 0 else 1
             out.append([S, (sg * 132, -616 + dy), T])
+        elif b == "rail":  # лестница со спины: плечо уходит вперёд к перекладине (укорочено), локоть чуть наружу
+            sg = -1 if S[0] < 0 else 1
+            out.append([S, (sg * 142, (S[1] + T[1]) / 2 + 30), T])
         else:
             out.append(ik(S, T, L1, L2, b))
     return out
@@ -665,7 +668,7 @@ def person(name="hero", view="front", face="neutral", phase=None, arms="down", b
             tgt = (290, -548 + body_dy) if arms == "push" else (120, -580 + body_dy)
             armFar = ik((shS[0] + 10, shS[1]), (tgt[0] + 12, tgt[1] - 4), 178, 170, "low"); armNear = ik(shS, tgt, 178, 170, "low")
         elif arms == "take":
-            armFar = fk((shS[0] + 10, shS[1]), 0.05, 178, 0.2, 170); armNear = ik(shS, (110, -1060 + body_dy * 0.3), 178, 170, "fwd")
+            armFar = fk((shS[0] + 10, shS[1]), 0.05, 178, 0.2, 170); armNear = ik(shS, (262, -1030 + body_dy * 0.3), 178, 170, "low")
         elif arms == "knees":
             armFar = ik((shS[0] + 10, shS[1]), (170 + hx * 0, -300), 178, 170, "low"); armNear = ik(shS, (160, -296), 178, 170, "low")
         elif arms == "money":
