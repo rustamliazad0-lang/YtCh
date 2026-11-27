@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8">
+<style>
+html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:#000;font-family:'DejaVu Sans',sans-serif}
+#stage,#chars,#tint,#ui{position:absolute;inset:0}#tint{background:#ff2a1a;mix-blend-mode:multiply;opacity:0}
+#cap{position:absolute;left:60px;right:60px;top:1150px;text-align:center;font:900 92px/1.05 'DejaVu Sans',sans-serif;color:#fff;text-transform:uppercase;-webkit-text-stroke:14px #000;paint-order:stroke fill;text-shadow:0 8px 24px rgba(0,0,0,.6)}#cap .k{color:#ff3b30}
+.u{position:absolute;transform-origin:50% 50%}
+.pill-y{right:50px;background:#f2c14e;color:#161210;font:900 50px/1 'DejaVu Sans';padding:16px 28px;border:5px solid #161210;border-radius:20px;text-transform:uppercase;box-shadow:0 6px 0 rgba(0,0,0,.35)}
+.pill-r{right:50px;background:#e8443a;color:#fff;font:900 50px/1 'DejaVu Sans';padding:16px 28px;border:5px solid #161210;border-radius:20px;text-transform:uppercase;box-shadow:0 6px 0 rgba(0,0,0,.35)}
+.pill-w{left:50%;margin-left:-330px;width:660px;text-align:center;background:#f6f1e6;color:#161210;font:900 56px/1 'DejaVu Sans';padding:16px 0;border:5px solid #161210;border-radius:40px;text-transform:uppercase;box-shadow:0 6px 0 rgba(0,0,0,.35)}
+.pill-w b{display:inline-block;width:46px;height:46px;margin-right:14px;vertical-align:-8px;background:#c9952e;border:4px solid #161210;border-radius:8px}
+.bubble{background:#fff;color:#111;font:900 62px/1.1 'DejaVu Sans';padding:20px 30px;border:5px solid #111;border-radius:28px;white-space:nowrap}
+.bubble:after{content:"";position:absolute;left:46px;bottom:-30px;border:16px solid transparent;border-top:22px solid #111}
+.phone{left:90px;top:330px;width:900px;height:1400px}
+.poll{left:0;right:0;top:1420px;text-align:center}.poll span{display:inline-block;width:330px;margin:0 20px;padding:26px 0;border:6px solid #111;border-radius:60px;font:900 64px/1 'DejaVu Sans';color:#fff}
+</style>
+<div id="stage"></div>
+<svg id="chars" width="1080" height="1920" viewBox="0 0 1080 1920"><defs><clipPath id="hclip" clipPathUnits="userSpaceOnUse"><polygon id="hpoly" points="0,0 1,0 1,1"/></clipPath></defs></svg>
+<div id="tint"></div><div id="ui"></div><div id="cap"></div>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import { setup } from './director.js';
+const q = new URLSearchParams(location.search).get('spec');
+setup(await (await fetch(q)).json()); window.READY = true;
+</script>

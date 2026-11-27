@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8">
+<style>html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:#000}#stage,#chars,#tint{position:absolute;inset:0}#tint{background:#ff2a1a;mix-blend-mode:multiply;opacity:0;pointer-events:none}
+#cap{position:absolute;left:60px;right:60px;top:1150px;text-align:center;font:900 92px/1.05 'DejaVu Sans',sans-serif;color:#fff;text-transform:uppercase;-webkit-text-stroke:14px #000;paint-order:stroke fill}#cap .k{color:#ff3b30}</style>
+<div id="stage"></div><svg id="chars" width="1080" height="1920" viewBox="0 0 1080 1920"></svg><div id="tint"></div><div id="cap"></div>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import { setup } from './director.js';
+const q = new URLSearchParams(location.search).get('spec');
+const spec = await (await fetch(q)).json();
+setup(spec); window.READY = true;
+</script>
