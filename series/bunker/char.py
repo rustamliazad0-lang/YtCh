@@ -70,10 +70,20 @@ def sub(P, t0, t1, n=6):
 
 
 def ik(S, T, L1, L2, bend):
+    """Две кости. bend: 'low' — локоть ниже (руки опущены, у груди), 'out' — локоть наружу от тела (рука вверх),
+    'fwd' — локоть вперёд (профиль), или число ±1 (старый режим)."""
     dx, dy = T[0] - S[0], T[1] - S[1]
     d = max(abs(L1 - L2) + 1e-3, min(math.hypot(dx, dy), L1 + L2 - 1e-3)); a = math.atan2(dy, dx)
     b = math.acos(max(-1.0, min(1.0, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d))))
-    E = (S[0] + L1 * math.cos(a + bend * b), S[1] + L1 * math.sin(a + bend * b))
+    cand = [(S[0] + L1 * math.cos(a + sg * b), S[1] + L1 * math.sin(a + sg * b)) for sg in (1, -1)]
+    if bend == "low":
+        E = max(cand, key=lambda e: e[1])
+    elif bend == "out":
+        E = max(cand, key=lambda e: abs(e[0]) * (1 if S[0] * e[0] >= 0 else -1))
+    elif bend == "fwd":
+        E = max(cand, key=lambda e: e[0])
+    else:
+        E = cand[0] if bend > 0 else cand[1]
     return [S, E, (S[0] + d * math.cos(a), S[1] + d * math.sin(a))]
 
 
@@ -513,32 +523,35 @@ def arm_draw(L, P, far=False, sleeve=None):
 
 # ---------- позы рук (цели для кистей, фронт) ----------
 def arms_front(pose, t=0.0, sh=(-112, -808)):
-    """Возвращает [(цель кисти, изгиб)] для левой (экран) и правой руки."""
+    """Цели для кистей (левая и правая на экране) и режим локтя."""
     L1, L2 = 178, 170
     P = {
-        "down": [((-142, -452), 1), ((142, -452), -1)],
-        "hold": [((-62, -560), -1), ((62, -560), 1)],
-        "count": [((-120, -472), 1), ((22, -640), 1)],
-        "wave": [((-136, -470), 1), ((220 + 18 * math.sin(t * 9), -1010), 1)],
-        "head": [((-62, -930), 1), ((62, -930), -1)],
-        "reach": [((-80, -1060), 1), ((80, -1060), -1)],
-        "shrug": [((-190, -660), 1), ((190, -660), -1)],
-        "point": [((-136, -470), 1), ((330, -830), -1)],
-        "bags": [((-150, -470), 1), ((150, -470), -1)],
-        "money": [((-136, -470), 1), ((120, -650), -1)],
-        "phone": [((-136, -470), 1), ((62, -920), -1)],
-        "climb": [((-72, -1010 - 80 * math.sin(t * 2 * math.pi)), 1), ((72, -1010 + 80 * math.sin(t * 2 * math.pi)), -1)],
-        "flashlight": [((-142, -452), 1), ((30, -660), 1)],
+        "down": [((-142, -452), "low"), ((142, -452), "low")],
+        "hold": [((-96, -560), "side"), ((96, -560), "side")],
+        "count": [((-142, -452), "low"), ((30, -650), "side")],
+        "wave": [((-142, -452), "low"), ((215 + 18 * math.sin(t * 9), -1000), "out")],
+        "head": [((-66, -930), "out"), ((66, -930), "out")],
+        "reach": [((-80, -1060), "out"), ((80, -1060), "out")],
+        "shrug": [((-200, -640), "low"), ((200, -640), "low")],
+        "point": [((-142, -452), "low"), ((330, -830), "low")],
+        "bags": [((-150, -460), "low"), ((150, -460), "low")],
+        "money": [((-142, -452), "low"), ((150, -560), "side")],
+        "phone": [((-142, -452), "low"), ((66, -920), "out")],
+        "climb": [((-122, -1110 - 50 * math.sin(t * 2 * math.pi)), "out"), ((122, -1110 + 50 * math.sin(t * 2 * math.pi)), "out")],
+        "flashlight": [((-142, -452), "low"), ((40, -650), "side")],
     }[pose]
     out = []; dy = sh[1] + 808
     for i, (T, b) in enumerate(P):
         T = (T[0], T[1] + dy)
         S = (sh[0], sh[1]) if i == 0 else (-sh[0], sh[1])
-        out.append(ik(S, T, L1, L2, b))
+        if b == "side":  # плечо висит вдоль тела, локоть у бока, предплечье к зрителю (укорочено)
+            sg = -1 if S[0] < 0 else 1
+            out.append([S, (sg * 132, -616 + dy), T])
+        else:
+            out.append(ik(S, T, L1, L2, b))
     return out
 
 
-# ---------- персонаж целиком ----------
 def person(name="hero", view="front", face="neutral", phase=None, arms="down", blink=False, talk=0.0, gaze=0,
            sit=False, prop=None, light=(1, 1), rim="#ffd59a", t=0.0, step=0.0):
     """SVG-группа персонажа в локальных координатах (ступни в 0,0).
@@ -573,8 +586,8 @@ def person(name="hero", view="front", face="neutral", phase=None, arms="down", b
         armP = arms_front(arms, t, sh=(-112, -808 + body_dy))
         if step and arms == "down" and not sit:
             ph = t * 2 * math.pi
-            armP = [ik((-112, -808 + body_dy), (-134 + 8 * max(0, -math.sin(ph)), -452 + body_dy - 18 * max(0, -math.sin(ph))), 178, 170, 1),
-                    ik((112, -808 + body_dy), (134 - 8 * max(0, math.sin(ph)), -452 + body_dy - 18 * max(0, math.sin(ph))), 178, 170, -1)]
+            armP = [ik((-112, -808 + body_dy), (-134 + 8 * max(0, -math.sin(ph)), -452 + body_dy - 18 * max(0, -math.sin(ph))), 178, 170, "low"),
+                    ik((112, -808 + body_dy), (134 - 8 * max(0, math.sin(ph)), -452 + body_dy - 18 * max(0, math.sin(ph))), 178, 170, "low")]
         if view == "back":
             armP = [[(-p[0], p[1]) for p in a] for a in armP[::-1]]
         # тень
@@ -650,13 +663,13 @@ def person(name="hero", view="front", face="neutral", phase=None, arms="down", b
         shS = (-4 + hx, -808 + body_dy)
         if arms in ("hold", "push"):
             tgt = (290, -548 + body_dy) if arms == "push" else (120, -580 + body_dy)
-            armFar = ik((shS[0] + 10, shS[1]), (tgt[0] + 12, tgt[1] - 4), 178, 170, -1); armNear = ik(shS, tgt, 178, 170, -1)
+            armFar = ik((shS[0] + 10, shS[1]), (tgt[0] + 12, tgt[1] - 4), 178, 170, "low"); armNear = ik(shS, tgt, 178, 170, "low")
         elif arms == "take":
-            armFar = fk((shS[0] + 10, shS[1]), 0.05, 178, 0.2, 170); armNear = ik(shS, (110, -1060 + body_dy * 0.3), 178, 170, 1)
+            armFar = fk((shS[0] + 10, shS[1]), 0.05, 178, 0.2, 170); armNear = ik(shS, (110, -1060 + body_dy * 0.3), 178, 170, "fwd")
         elif arms == "knees":
-            armFar = ik((shS[0] + 10, shS[1]), (170 + hx * 0, -300), 178, 170, -1); armNear = ik(shS, (160, -296), 178, 170, -1)
+            armFar = ik((shS[0] + 10, shS[1]), (170 + hx * 0, -300), 178, 170, "low"); armNear = ik(shS, (160, -296), 178, 170, "low")
         elif arms == "money":
-            armFar = fk((shS[0] + 10, shS[1]), -sw_a, 178, -sw_a + 0.1, 170); armNear = ik(shS, (170, -680 + body_dy), 178, 170, -1)
+            armFar = fk((shS[0] + 10, shS[1]), -sw_a, 178, -sw_a + 0.1, 170); armNear = ik(shS, (150, -640 + body_dy), 178, 170, "low")
         else:
             armFar = fk((shS[0] + 10, shS[1]), sw_a, 178, sw_a + 0.25, 170)
             armNear = fk(shS, -sw_a, 178, -sw_a + 0.25, 170)
