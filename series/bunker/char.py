@@ -98,11 +98,14 @@ BASE = dict(h=1000, skin="#ecdcc0", hair="short", hairc="#3b2c22", top="parka", 
             pants="#3b4866", stripes=True, boots="#a8774a", sole="#d9bb8c", hands="#2b2b2b", stubble=False,
             mustache=None, beard=None, glasses=False, lashes=False, lips=None, apron=None, badge=False, coatlen=-478)
 LOOKS = {
-    "hero": dict(stubble=True),
-    "friend": dict(h=1010, hair="buzz", hairc="#2a2420", topc="#5c6a3e", pants="#4a4a3a", stripes=False, boots="#3a3028", sole="#6a5a48", stubble=True),
-    "grandpa": dict(h=960, hair="bald", hairc="#d6d4cc", top="quilted", topc="#7a5d3e", inner="#8a3a2a", pants="#4a4844", stripes=False,
-                    boots="#4a3a2e", sole="#7a6a58", hands="#e2cfb2", mustache="#d6d4cc", glasses=True, skin="#e8d2b2"),
-    "mom": dict(h=940, hair="long", hairc="#5a3a24", top="coat", topc="#8a3c3c", inner="#d8c8b0", pants="#363644", stripes=False,
+    # как в первой части: герой в красной толстовке и джинсах, дед седой в оливковой куртке, Макс в камуфляже
+    "hero": dict(hair="short", hairc="#2e221c", top="hoodie", topc="#b8322a", inner="#7a1e1a", pants="#2c3a56", stripes=False,
+                 boots="#f2f2ee", sole="#bdbdbd", hands="#ecdcc0", stubble=False),
+    "friend": dict(h=1010, hair="buzz", hairc="#2a2420", topc="#5c6a3e", camo=True, pants="#4e5a36", stripes=False, boots="#2a2622", sole="#4a4038",
+                   hands="#e4d0b0", stubble=True),
+    "grandpa": dict(h=960, hair="short", hairc="#e8e6e0", top="coat", topc="#6e6a3c", inner="#efefe8", pants="#55555a", stripes=False,
+                    boots="#5a4030", sole="#7a6a58", hands="#e2cfb2", skin="#e8d2b2", coatlen=-420),
+    "mom": dict(h=940, hair="long", hairc="#5a3a24", top="coat", topc="#c8962e", inner="#d8c8b0", pants="#363644", stripes=False,
                 boots="#3e3028", sole="#6a5a4a", hands="#ecdcc0", lashes=True, lips="#b0605a", coatlen=-330),
     "kid": dict(h=700, hair="short", hairc="#7a5434", top="hoodie", topc="#3c6a98", inner="#2c4e72", pants="#46566e", stripes=False,
                 boots="#e8e8e4", sole="#bdbdbd", hands="#ecdcc0"),
@@ -381,12 +384,22 @@ def head_side(L, F, blink=False, talk=0.0):
 
 
 # ---------- одежда ----------
+def camo(L, d):
+    if not L.get("camo"):
+        return ""
+    cid = uid("cm"); rnd = random.Random(3); s = f'<clipPath id="{cid}"><path d="{d}"/></clipPath><g clip-path="url(#{cid})">'
+    for _ in range(26):
+        x, y = rnd.uniform(-130, 130), rnd.uniform(-860, -440)
+        s += f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{rnd.uniform(14, 34):.0f}" ry="{rnd.uniform(8, 18):.0f}" transform="rotate({rnd.uniform(-40, 40):.0f} {x:.0f} {y:.0f})" fill="{rnd.choice(["#3e4a2a", "#7a7a52", "#2e3420"])}" opacity=".8"/>'
+    return s + "</g>"
+
+
 def torso_front(L, back=False):
     c, yb = L["topc"], L["coatlen"]; kind = L["top"]
     fl = 0 if yb > -460 else 0
     fl = 14 if yb > -440 else 0
     d = (f"M-44 -850 L44 -850 Q100 -838 114 -816 Q122 -800 120 -770 L{118 + fl} {yb} L{-118 - fl} {yb} L-120 -770 Q-122 -800 -114 -816 Q-100 -838 -44 -850 Z")
-    s = f'<path d="{d}" fill="{c}" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>'
+    s = f'<path d="{d}" fill="{c}" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>' + camo(L, d)
     s += f'<path d="M60 -830 Q104 -800 106 -700 L104 {yb + 20}" fill="none" stroke="{shade(c, .78)}" stroke-width="18" opacity=".45"/>'  # тень справа
     if back:
         s += f'<path d="M-110 -760 Q0 -742 110 -760" fill="none" stroke="{INK}" stroke-width="{FINE}" opacity=".7"/>'
@@ -446,7 +459,7 @@ def torso_side(L):
     c, yb = L["topc"], L["coatlen"]; kind = L["top"]
     fl = 12 if yb > -440 else 0
     d = f"M-38 -852 L34 -852 Q62 -838 68 -800 L72 -640 L{68 + fl} {yb} L{-64 - fl} {yb} L-66 -650 Q-72 -790 -60 -830 Q-52 -848 -38 -852 Z"
-    s = f'<path d="{d}" fill="{c}" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>'
+    s = f'<path d="{d}" fill="{c}" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>' + camo(L, d)
     s += f'<path d="M-50 -820 Q-62 -720 -56 {yb + 16}" fill="none" stroke="{shade(c, .78)}" stroke-width="16" opacity=".45"/>'
     if kind in ("parka", "quilted"):
         s += f'<path d="M14 -852 L30 -870 L44 -846 L40 -818 Z" fill="{shade(c, 1.06)}" stroke="{INK}" stroke-width="{FINE}"/>'
@@ -696,7 +709,8 @@ def person(name="hero", view="front", face="neutral", phase=None, arms="down", b
     dx, dy = 5 * light[0], 3 * light[1]
     defs = (f'<filter id="{g}" x="-15%" y="-10%" width="130%" height="120%"><feMorphology in="SourceAlpha" operator="erode" radius="3.2" result="i"/>'
             f'<feOffset in="i" dx="{dx}" dy="{dy}" result="o"/><feComposite in="i" in2="o" operator="out" result="e"/><feFlood flood-color="{rim}" flood-opacity=".7"/><feComposite in2="e" operator="in" result="r"/>'
-            f'<feOffset in="i" dx="{-dx * 2.2}" dy="0" result="o2"/><feComposite in="i" in2="o2" operator="out" result="e2"/><feFlood flood-color="#10141c" flood-opacity=".22"/><feComposite in2="e2" operator="in" result="d"/>'
+            f'<feOffset in="i" dx="{-dx * 5.5}" dy="{-dy * 1.5}" result="o2"/><feComposite in="i" in2="o2" operator="out" result="e2"/><feGaussianBlur in="e2" stdDeviation="3" result="e2b"/>'
+            f'<feFlood flood-color="#1a1426" flood-opacity=".34"/><feComposite in2="e2b" operator="in" result="d0"/><feComposite in="d0" in2="SourceAlpha" operator="in" result="d"/>'
             f'<feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="d"/><feMergeNode in="r"/></feMerge></filter>')
     return f'<g transform="scale({k:.3f})"><defs>{defs}</defs><g filter="url(#{g})">{s}</g></g>'
 

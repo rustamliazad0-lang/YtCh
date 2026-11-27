@@ -143,11 +143,26 @@ class Pic:
 
     def glow(self, X, Y, Z, r, color, op=0.55):
         x, y, d = self.cam.p(X, Y, Z); g = self.gid(); R = r * self.cam.f / d
+        if R > 650:  # камера вплотную к лампе: не заливать весь кадр
+            op *= 650 / R; R = 650 + (R - 650) * 0.3
         self.defs.append(f'<radialGradient id="{g}"><stop offset="0" stop-color="{color}" stop-opacity="{op}"/><stop offset=".45" stop-color="{color}" stop-opacity="{op * 0.35}"/><stop offset="1" stop-color="{color}" stop-opacity="0"/></radialGradient>')
         self.top.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{R:.1f}" fill="url(#{g})" style="mix-blend-mode:screen"/>')
 
-    def svg(self, sky="#101014", grade=("#2a3550", "#ffb060"), grain=0.07, vignette=0.55, particles=None, ptime=0.0, overlay=""):
-        body = "".join(s for _, s in sorted(self.items, key=lambda t: -t[0]))
+    def svg(self, sky="#101014", grade=("#2a3550", "#ffb060"), grain=0.07, vignette=0.55, particles=None, ptime=0.0, overlay="", dof=None):
+        items = sorted(self.items, key=lambda t: -t[0])
+        if dof:  # (фокус в метрах, сила): чем дальше за фокусом, тем сильнее размытие; группы идут подряд, т.к. отсортированы по глубине
+            focus, k = dof; parts_, cur, buf, used = [], None, [], set()
+            for d_, s_ in items:
+                lv = round(min(9.0, max(0.0, (d_ - focus - 0.5) * k)) * 2) / 2
+                if lv != cur and buf:
+                    parts_.append(f'<g filter="url(#dof{str(cur).replace(".", "_")})">{"".join(buf)}</g>' if cur else "".join(buf)); buf = []
+                cur = lv; buf.append(s_); used.add(lv)
+            if buf:
+                parts_.append(f'<g filter="url(#dof{str(cur).replace(".", "_")})">{"".join(buf)}</g>' if cur else "".join(buf))
+            body = "".join(parts_)
+            self.defs += [f'<filter id="dof{str(lv).replace(".", "_")}" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="{lv}" edgeMode="duplicate"/></filter>' for lv in used if lv]
+        else:
+            body = "".join(s for _, s in items)
         defs = "".join(self.defs)
         rnd = random.Random(7)
         parts = ""
@@ -718,4 +733,88 @@ def village(cam):
     for k in range(14):
         x = -8 + k * 4.3 + rnd.uniform(-0.5, 0.5); q = cam.p(x, 0.3, -1.5); r = 0.5 * cam.f / q[2]
         pic.raw(q[2] + 0.1, f'<ellipse cx="{q[0]:.1f}" cy="{q[1]:.1f}" rx="{r:.1f}" ry="{r * .6:.1f}" fill="#5a7a3a" stroke="{INK}" stroke-width="{max(.6, 4 / q[2]):.1f}"/>')
+    return pic
+
+
+def cutaway(cam, red=0.0, t=0.0, open_hatch=False):
+    """Разрез как в первой части: сверху ночь, дом и гараж, под землёй бункер (видно внутрь), шахта с лестницей,
+    закопанный бак с соляркой справа, скважина вниз к синему водоносному слою. Пол бункера y=-5.2, потолок y=-2.6."""
+    pic = Pic(cam, [(0.0, -2.9, -1.5, 5.0, "#ffd08a"), (-2.5, -2.9, -1.5, 3.5, "#ffd08a"), (2.5, -2.9, -1.5, 3.5, "#ffd08a")], base=0.45, soft=False)
+    Z0 = 0.0
+    # грунт: слои с камешками, вырез под бункер, шахту и бак
+    soil = [(-30, 0, Z0), (30, 0, Z0), (30, -40, Z0), (-30, -40, Z0)]
+    pic.poly(soil, "#4a3a2c", stroke=False, depth=60)
+    for k, (y0, col) in enumerate(((-0.0, "#5a4634"), (-1.0, "#4e3c2c"), (-6.4, "#3e3026"))):
+        pic.poly([(-30, y0, Z0 + 0.001), (30, y0, Z0 + 0.001), (30, y0 - (1.0 if k == 0 else 5.4 if k == 1 else 6), Z0 + 0.001), (-30, y0 - (1.0 if k == 0 else 5.4 if k == 1 else 6), Z0 + 0.001)], col, stroke=False, depth=59.9)
+    rnd = random.Random(5)
+    for _ in range(160):
+        x, y = rnd.uniform(-12, 12), rnd.uniform(-11.5, -0.2)
+        if -4.3 < x < 4.3 and -5.5 < y < -2.3:
+            continue
+        q = cam.p(x, y, Z0 + 0.002); pic.raw(59.8, f'<ellipse cx="{q[0]:.1f}" cy="{q[1]:.1f}" rx="{rnd.uniform(2, 6) * cam.f / q[2] / 100:.1f}" ry="{rnd.uniform(1.5, 4) * cam.f / q[2] / 100:.1f}" fill="#6a5440" opacity=".7"/>')
+    # водоносный слой
+    pic.poly([(-30, -7.6, Z0 + 0.003), (30, -7.6, Z0 + 0.003), (30, -8.3, Z0 + 0.003), (-30, -8.3, Z0 + 0.003)], "#2c7ad0", stroke=False, depth=59.7, emissive=True)
+    pic.glow(0, -7.95, Z0 + 0.1, 3.0, "#4aa0ff", 0.25)
+    # бункер: вырез с глубиной (видна задняя стена, пол, потолок)
+    xl, xr, yb, yt, zb = -4.2, 4.2, -5.4, -2.4, -2.6
+    pic.poly([(xl, yb, zb), (xr, yb, zb), (xr, yt, zb), (xl, yt, zb)], "#6e6a60", depth=50)
+    pic.poly([(xl, yb, Z0), (xr, yb, Z0), (xr, yb, zb), (xl, yb, zb)], "#4e4a44", depth=49)
+    pic.poly([(xl, yt, Z0), (xr, yt, Z0), (xr, yt, zb), (xl, yt, zb)], "#3e3a36", depth=49)
+    pic.poly([(xl, yb, Z0), (xl, yb, zb), (xl, yt, zb), (xl, yt, Z0)], "#5a564e", depth=49.5)
+    pic.poly([(xr, yb, Z0), (xr, yb, zb), (xr, yt, zb), (xr, yt, Z0)], "#5a564e", depth=49.5)
+    # перегородки: слева ФВУ, справа склад еды
+    pic.box(-2.6, -2.5, yb, yt, zb, Z0 - 0.3, "#5e5a52")
+    pic.box(2.5, 2.6, yb, yt, zb, Z0 - 0.3, "#5e5a52")
+    for k, x0 in enumerate((-3.9, -3.25)):
+        pic.box(x0, x0 + 0.5, yb, yb + 0.9, zb + 0.1, zb + 0.6, "#3a8a5a", top="#4aa06a")
+        x, y, d = cam.p(x0 + 0.25, yb + 0.55, zb + 0.61); r = 0.17 * cam.f / d
+        pic.raw(d - 0.1, f'<g transform="rotate({t * 500 * (1 if k == 0 else 0.3):.0f} {x:.1f} {y:.1f})">' + "".join(f'<ellipse cx="{x:.1f}" cy="{y - r * .5:.1f}" rx="{r * .25:.1f}" ry="{r * .5:.1f}" transform="rotate({j * 120} {x:.1f} {y:.1f})" fill="#e8f0e8"/>' for j in range(3)) + '</g>')
+    for row in range(4):
+        y = yb + 0.3 + row * 0.6
+        pic.box(2.8, 4.1, y - 0.03, y, zb + 0.05, zb + 0.5, "#7a5a3a", top="#8e6c48")
+        for k in range(9):
+            pic.jar(2.9 + k * 0.13, y, zb + 0.3, 0.05, 0.16, ["#c0602a", "#7a9a3a", "#a8322a", "#d8a03a"][(k + row) % 4], lid="#e8e4d8", label=None, fill="pickle" if k % 2 else "tomato")
+    pic.box(-1.8, 0.4, yb + 0.42, yb + 0.48, zb + 0.15, zb + 0.55, WOOD, top="#94693e")                     # лавка
+    for x in (-2.0, 0.0, 2.0):  # лампы под потолком
+        pic.box(x - 0.35, x + 0.35, yt - 0.06, yt - 0.02, zb + 0.4, zb + 0.9, "#fff6dc", stroke=False, emissive=True)
+        pic.glow(x, yt - 0.1, zb + 0.6, 1.1, "#ffd890", 0.5)
+    # шахта с лестницей из гаража
+    sx = 1.2
+    pic.poly([(sx - 0.4, yt, -0.6), (sx + 0.4, yt, -0.6), (sx + 0.4, 0, -0.6), (sx - 0.4, 0, -0.6)], "#2e2a26", depth=48)
+    for dx in (-0.22, 0.22):
+        pic.box(sx + dx - 0.03, sx + dx + 0.03, yb, 0.1, -0.5, -0.45, "#9aa3ac")
+    for y in [yb + 0.3 + k * 0.32 for k in range(16)]:
+        if y < 0.05:
+            pic.box(sx - 0.22, sx + 0.22, y, y + 0.04, -0.5, -0.46, "#b8c0c8")
+    # люк на уровне пола гаража
+    pic.box(sx - 0.45, sx + 0.45, -0.02, 0.04 if not open_hatch else 0.02, -0.7, -0.2, "#7a838c" if not open_hatch else "#1a1210")
+    # бак с соляркой в грунте справа и труба к генератору
+    tx, ty = 6.2, -1.7
+    pic.box(tx - 1.0, tx + 1.0, ty - 0.45, ty + 0.45, -0.6, -0.2, "#e0b830", top="#f0c840", emissive=True)
+    pic.glow(tx, ty, 0.0, 1.6, "#ffd84a", 0.35)
+    ftext(pic, tx, ty - 0.1, -0.15, "БАК", 0.28, "#3a2a10")
+    pic.box(tx - 1.6, tx - 1.55, -3.0, ty, -0.45, -0.4, "#8a9198")
+    pic.box(4.2, tx - 1.55, -3.05, -2.95, -0.45, -0.4, "#8a9198")
+    # скважина: труба от бункера вниз к воде
+    pic.box(-1.0, -0.94, -7.6, yb, -0.5, -0.45, "#8ab8e0")
+    # поверхность: земля, дом, гараж, забор, фонарь, небо
+    pic.poly([(-30, 0, 2), (30, 0, 2), (30, 0, -30), (-30, 0, -30)], "#2a2a30", stroke=False, depth=70)
+    # гараж в разрезе: задняя стена, крыша, боковые стены, внутри полка и машина деда не нужна — пусто, только люк
+    pic.poly([(-0.2, 0, -3.0), (2.6, 0, -3.0), (2.6, 2.4, -3.0), (-0.2, 2.4, -3.0)], "#3e424c", depth=40)
+    pic.box(-0.3, 2.7, 2.4, 2.6, -3.1, 0.0, "#2e3138", top="#3a3e46")
+    pic.box(-0.3, -0.2, 0, 2.4, -3.0, 0.0, "#34383f"); pic.box(2.6, 2.7, 0, 2.4, -3.0, 0.0, "#34383f")
+    pic.box(0.1, 0.9, 0.9, 0.95, -2.95, -2.6, WOOD, top="#94693e")
+    for k, col in enumerate(("#a8321e", "#3c5a34")):
+        pic.box(0.2 + k * 0.3, 0.45 + k * 0.3, 0, 0.42, -2.9, -2.7, col, top=shade(col, 1.2))
+    hanging_lamp(pic, 1.6, 2.1, -1.6, color="#ffd890")
+    pic.box(-6.0, -2.0, 0, 2.6, -4.0, -1.5, "#3e4250", top="#4a4e5a")                                     # дом
+    pic.poly([(-6.3, 2.6, -1.4), (-1.7, 2.6, -1.4), (-4.0, 3.9, -1.4)], "#2e3038")
+    for wx in (-5.3, -3.6):
+        pic.box(wx, wx + 0.8, 1.0, 1.8, -1.49, -1.47, "#ffd870", stroke=False, emissive=True)
+        pic.glow(wx + 0.4, 1.4, -1.4, 0.9, "#ffcf70", 0.35)
+    x = 3.4
+    while x < 9.5:
+        pic.box(x, x + 0.08, 0, 1.0, -1.2, -1.17, "#5a4a3a"); x += 0.16
+    pic.box(3.4, 9.5, 0.7, 0.76, -1.22, -1.18, "#5a4a3a")
+    pic.box(-7.6, -7.5, 0, 3.6, -1.0, -0.9, "#2a2a2e"); pic.glow(-7.3, 3.6, -0.9, 1.4, "#ffcf8a", 0.5)
     return pic
