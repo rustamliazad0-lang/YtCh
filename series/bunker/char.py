@@ -117,8 +117,8 @@ FACES = {
     "neutral":    dict(bi=0, bo=0, ui=-1, uo=-1, lo=10, pr=9, mouth="line"),
     "worried":    dict(bi=-15, bo=4, ui=-8, uo=0, lo=13, pr=8, white=True, wr=2, mouth="worry"),
     "anxious":    dict(bi=-16, bo=5, ui=-9, uo=-1, lo=13, pr=7, white=True, wr=2, gaze=5, mouth="grimace", sweat=True),
-    "scared":     dict(bi=-20, bo=-4, eye="wide", rx=12, ry=13.5, tilt=10, pr=6.5, wr=3, mouth="fear", sweat=True),
-    "shocked":    dict(bi=-19, bo=-17, eye="wide", rx=13, ry=15, tilt=0, pr=5.5, wr=3, mouth="drop"),
+    "scared":     dict(bi=-19, bo=-5, eye="wide", rx=12, ry=12, tilt=12, pr=5.5, wr=3, mouth="fear", sweat=True),
+    "shocked":    dict(bi=-18, bo=-17, eye="wide", rx=13, ry=14, tilt=0, pr=5, wr=3, mouth="drop"),
     "angry":      dict(bi=12, bo=-7, ui=4, uo=-4, lo=6, pr=8.5, white=True, low=True, fr=True, mouth="teeth"),
     "sad":        dict(bi=-13, bo=6, ui=-3, uo=4, lo=10, pr=8, white=True, gy=3, wr=1, mouth="sad", tear=True),
     "happy":      dict(bi=-6, bo=-4, eye="happy", mouth="grin", cheeks=True),
@@ -203,23 +203,21 @@ def eye(cx, cy, F, sg, blink, gaze):
         um = (ui + uo) / 2 - 2                        # середина верхнего века
         shape = f"M{xi:.1f} {ey + ui:.1f} Q{ex:.1f} {ey + (ui + uo) / 2 - 4:.1f} {xo:.1f} {ey + uo:.1f} C{xo - sg * 1:.1f} {ey + lo + 4:.1f} {xi + sg * 1:.1f} {ey + lo + 4:.1f} {xi:.1f} {ey + ui:.1f} Z"
         s += f'<clipPath id="{cid}"><path d="{shape}"/></clipPath>'
-        if F.get("white"):
-            s += f'<path d="{shape}" fill="#fbf8f0"/>'
         pr = F.get("pr", 9)
         py = (ey + um + ey + 0.75 * (lo + 4) + 0.125 * (ui + uo)) / 2 + gy if F.get("white") else ey + um + 3 + gy   # белки: зрачок по центру; тяжёлое веко: срезан пополам
         s += (f'<g clip-path="url(#{cid})"><circle cx="{ex + gz:.1f}" cy="{py:.1f}" r="{pr}" fill="{INK}"/>'
-              f'<circle cx="{ex + gz + pr * 0.35:.1f}" cy="{py - pr * 0.4:.1f}" r="{max(1.4, pr * 0.28):.1f}" fill="#ffffff" opacity="{0.9 if F.get("white") else 0.5}"/></g>')
+              f'<circle cx="{ex + gz + pr * 0.35:.1f}" cy="{py - pr * 0.4:.1f}" r="{max(1.4, pr * 0.28):.1f}" fill="#ffffff" opacity=".55"/></g>')
         s += f'<path d="M{xi - sg * 1:.1f} {ey + ui:.1f} Q{ex:.1f} {ey + (ui + uo) / 2 - 4:.1f} {xo + sg * 2:.1f} {ey + uo + 1:.1f}" fill="none" stroke="{INK}" stroke-width="4.6" stroke-linecap="round"/>'
-        if F.get("white") or F.get("low"):
+        if F.get("low"):
             s += f'<path d="M{xi:.1f} {ey + ui:.1f} C{xi + sg * 1:.1f} {ey + lo + 4:.1f} {xo - sg * 1:.1f} {ey + lo + 4:.1f} {xo:.1f} {ey + uo:.1f}" fill="none" stroke="{INK}" stroke-width="{2.8 if F.get("low") else 1.8}" stroke-linecap="round"/>'
         if F.get("_lashes"):
             s += f'<line x1="{xo + sg * 1:.1f}" y1="{ey + uo:.1f}" x2="{xo + sg * 7:.1f}" y2="{ey + uo - 5:.1f}" stroke="{INK}" stroke-width="2.6" stroke-linecap="round"/>'
-    elif kind == "wide":  # широко открытые круглые глаза с белками; верхнее веко — дуга по контуру, при испуге наклонена к переносице
+    elif kind == "wide":  # испуг/шок: зрачок-точка, над ним высокая дуга века, без белков и обводки
         rx, ry, tl = F.get("rx", 12), F.get("ry", 14), F.get("tilt", 0) * -sg
         pr = F.get("pr", 6)
-        s += (f'<g transform="rotate({tl} {ex} {ey})"><ellipse cx="{ex}" cy="{ey}" rx="{rx}" ry="{ry}" fill="#fbf8f0" stroke="{INK}" stroke-width="2.4"/>'
-              f'<circle cx="{ex + gz:.1f}" cy="{ey + 1 + gy:.1f}" r="{pr}" fill="{INK}"/><circle cx="{ex + gz + pr * .4:.1f}" cy="{ey + 1 + gy - pr * .45:.1f}" r="{pr * .32:.1f}" fill="#fff"/>'
-              f'<path d="M{ex - rx - 1} {ey - 2} A{rx + 1} {ry + 1} 0 0 1 {ex + rx + 1} {ey - 2}" fill="none" stroke="{INK}" stroke-width="4.4" stroke-linecap="round"/></g>')
+        s += (f'<g transform="rotate({tl} {ex} {ey})"><circle cx="{ex + gz:.1f}" cy="{ey + 2 + gy:.1f}" r="{pr}" fill="{INK}"/>'
+              f'<circle cx="{ex + gz + pr * .4:.1f}" cy="{ey + 2 + gy - pr * .45:.1f}" r="{pr * .3:.1f}" fill="#fff" opacity=".6"/>'
+              f'<path d="M{ex - rx} {ey + 1} A{rx} {ry} 0 0 1 {ex + rx} {ey + 1}" fill="none" stroke="{INK}" stroke-width="4.4" stroke-linecap="round"/></g>')
     elif kind == "blink":
         s += f'<path d="M{ex - 14} {ey + 3} Q{ex} {ey + 7} {ex + 14} {ey + 3}" fill="none" stroke="{INK}" stroke-width="4.4" stroke-linecap="round"/>'
     elif kind == "happy":
@@ -339,15 +337,13 @@ def head_side(L, F, blink=False, talk=0.0):
         cid = uid("es")
         shape = f"M{ex - 11} {ey + uo:.1f} Q{ex} {ey + (ui + uo) / 2 - 4:.1f} {ex + 11} {ey + ui:.1f} Q{ex + 4} {ey + lo + 5:.1f} {ex - 11} {ey + uo:.1f} Z"
         s += f'<clipPath id="{cid}"><path d="{shape}"/></clipPath>'
-        if F.get("white"):
-            s += f'<path d="{shape}" fill="#fbf8f0"/>'
         pr = F.get("pr", 9) * 0.92
         s += f'<g clip-path="url(#{cid})"><circle cx="{ex + 4}" cy="{ey + 2 + F.get("gy", 0)}" r="{pr:.1f}" fill="{INK}"/></g>'
         s += f'<path d="M{ex - 12} {ey + uo + 1:.1f} Q{ex} {ey + (ui + uo) / 2 - 4:.1f} {ex + 12} {ey + ui:.1f}" fill="none" stroke="{INK}" stroke-width="4.4" stroke-linecap="round"/>'
         if F.get("low"):
             s += f'<path d="M{ex - 9} {ey + lo - 1} Q{ex} {ey + lo + 4} {ex + 10} {ey + lo - 2}" fill="none" stroke="{INK}" stroke-width="2.4" stroke-linecap="round"/>'
     elif kind == "wide":
-        s += f'<ellipse cx="{ex}" cy="{ey}" rx="9" ry="{F.get("ry", 14) * .95:.1f}" fill="#fbf8f0" stroke="{INK}" stroke-width="2.4"/><circle cx="{ex + 3}" cy="{ey + 1}" r="{F.get("pr", 6) * .9:.1f}" fill="{INK}"/><path d="M{ex - 10} {ey - 3} A10 14 0 0 1 {ex + 10} {ey - 3}" fill="none" stroke="{INK}" stroke-width="4.2" stroke-linecap="round"/>'
+        s += f'<circle cx="{ex + 3}" cy="{ey + 2}" r="{F.get("pr", 6) * .9:.1f}" fill="{INK}"/><path d="M{ex - 10} {ey - 3} A10 14 0 0 1 {ex + 10} {ey - 3}" fill="none" stroke="{INK}" stroke-width="4.2" stroke-linecap="round"/>'
     elif kind == "happy":
         s += f'<path d="M{ex - 10} {ey + 4} Q{ex} {ey - 10} {ex + 10} {ey + 4}" fill="none" stroke="{INK}" stroke-width="4.4" stroke-linecap="round"/>'
     else:
