@@ -259,8 +259,8 @@ def whip(svg, t):
             a = 1 - abs(d) / 0.13; dirn = -1 if d < 0 else 1
     if a <= 0:
         return svg
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920"><defs><filter id="wb" x="-30%" y="0" width="160%" height="100%">'
-            f'<feGaussianBlur stdDeviation="{70 * a:.0f} 0"/></filter></defs><rect width="1080" height="1920" fill="#111"/><g filter="url(#wb)" transform="translate({-dirn * 260 * a:.0f} 0)">{svg}</g></svg>')
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920"><defs><filter id="wb" x="-30%" y="-5%" width="160%" height="110%">'
+            f'<feGaussianBlur stdDeviation="{70 * a:.0f} 0" edgeMode="duplicate"/></filter></defs><rect width="1080" height="1920" fill="#111"/><g filter="url(#wb)" transform="translate({540 - dirn * 260 * a:.0f} 960) scale({1 + 0.55 * a:.3f}) translate(-540 -960)">{svg}</g></svg>')
 
 
 
@@ -345,8 +345,8 @@ def frame(t):
         bg = p.svg(**kw)
         z = 1.0 if u < 0.45 else 1.0 + 0.5 * ss((u - 0.62) / 0.2)
         ph = f'<g transform="translate(540 820) scale({z:.3f}) translate(-540 -820)">{phone_svg(t, u)}</g>'
-        return (f'<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920"><defs><filter id="pb"><feGaussianBlur stdDeviation="10"/></filter></defs>'
-                f'<g filter="url(#pb)">{bg}</g><rect width="1080" height="1920" fill="#000" opacity=".35"/>{ph}{caption(t)}</svg>')
+        return (f'<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920"><defs><filter id="pb" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="10" edgeMode="duplicate"/></filter></defs>'
+                f'<g transform="translate(540 960) scale(1.08) translate(-540 -960)"><g filter="url(#pb)">{bg}</g></g><rect width="1080" height="1920" fill="#000" opacity=".35"/>{ph}{caption(t)}</svg>')
 
     if i == 2:  # у люка считает -> рынок -> супермаркет -> аптека (с движением и резкими переходами)
         if u < 0.2:
