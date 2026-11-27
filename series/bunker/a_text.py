@@ -92,7 +92,7 @@ def caption(t, y=1200):
                     out.append(f'<tspan fill="{"#ff3b30" if "*" in w else "#ffffff"}">{esc(w.replace("*", ""))}</tspan>')
                 tw = len(p.replace("*", "")) * 86 * 0.64
                 sc *= min(1.0, 980 / max(1, tw))
-                yy = {"phone": 1590, "up": 1500, "end": 1240}.get(b[0], y)
+                yy = {"phone": 1590, "up": 1500, "end": 1240, "cut_intro": 1420, "knock": 1420}.get(b[0], y)
                 return (f'<g transform="translate(540 {yy}) scale({sc:.3f})"><text x="0" y="0" text-anchor="middle" font-family="{FONT}" font-weight="900" font-size="86" '
                         f'stroke="#0d0b0a" stroke-width="14" stroke-linejoin="round" paint-order="stroke">{" ".join(out)}</text></g>')
     return ""
@@ -150,13 +150,14 @@ def siren_sky(t):
 
 def cut_intro(t, b):
     w = (t - b[1]) / (b[2] - b[1])
-    c = I.Cam(x=0.6 + 0.25 * math.sin(t * 0.6), y=-1.4 - 0.6 * ss(w), z=12.5 - 3.8 * ss(w), pitch=0.03, f=780)
-    p = I.cutaway(c, t=t)
-    for k, (n, x) in enumerate((("grandpa", -1.6), ("mom", -1.15), ("girl", -0.75), ("kid", -0.35))):
-        AI.put(p, C.person(n, "side", face="worried", sit=1.0, blink=AI.blink(t, k), rim="#ffd59a"), x, -2.0, Y=-5.4)
-    AI.put(p, C.person("hero", "front", face="worried", blink=AI.blink(t, 2), rim="#ffd59a"), 0.55, -1.2, Y=-5.4)
+    # почти плоский вид, как в части 1: камера далеко, длинный объектив; медленный наезд к гаражу
+    c = I.Cam(x=0.2 + 0.6 * ss(w), y=-1.6 + 0.6 * ss(w), z=60, pitch=0.0, f=3900 * (1 + 0.35 * ss(w)))
+    p = I.cutaway(c, t=t, red=1)
+    for k, (n, x) in enumerate((("grandpa", -5.2), ("mom", -4.6), ("girl", -4.05), ("kid", -3.55))):
+        AI.put(p, C.person(n, "side", face="worried", sit=1.0, blink=AI.blink(t, k), rim="#ffd59a"), x, -1.2, Y=-6.2)
+    AI.put(p, C.person("hero", "front", face="worried", blink=AI.blink(t, 2), rim="#ffd59a"), 1.1, -0.9, Y=-6.2)
     p.defs.append(sil_filter())
-    return p.svg(sky=siren_sky(t), particles=("dust", 40), vignette=0.6, grain=0, ptime=t)
+    return p.svg(sky=siren_sky(t), particles=("dust", 30), vignette=0.55, grain=0, ptime=t)
 
 
 def knock(t, b):
@@ -165,22 +166,22 @@ def knock(t, b):
         if c0 <= t < c0 + 0.35:
             e = max(e, (1 - (t - c0) / 0.35) ** 2); tk = c0
     w = (t - b[1]) / (b[2] - b[1])
-    c = I.Cam(x=1.15, y=1.2 + 0.1 * w, z=3.4 - 0.5 * w, pitch=-0.12, f=820)
+    c = I.Cam(x=1.2, y=1.3 - 0.4 * w, z=60, pitch=0.0, f=11000 * (1 + 0.15 * w))
     c.vx += math.sin(t * 31) * 22 * e; c.vy += math.cos(t * 23) * 14 * e
-    p = I.cutaway(c, t=t)
+    p = I.cutaway(c, t=t, red=1)
     p.defs.append(sil_filter())
     k = (t * 1.3) % 1.0
     svg = C.person("friend", "side", arms="money", rim="#ff8a6a")
-    x, y, d = p.cam.p(0.55, 0, -1.3)
+    x, y, d = p.cam.p(1.0, 0, -1.6)
     sc = p.cam.f / d * M
     g = C.place(svg, x, y, sc)
-    beam_from = p.cam.p(0.55 + 0.33, 1.05, -1.3); beam_to = p.cam.p(1.2, 0.02, -0.45)
+    beam_from = p.cam.p(1.0 + 0.3, 1.0, -1.6); beam_to = p.cam.p(1.9, 0.02, -0.5)
     p.raw(d - 0.01, f'<g filter="url(#sil)">{g}</g>')
     p.top.append(f'<polygon points="{beam_from[0]:.1f},{beam_from[1]:.1f} {beam_to[0] - 120:.1f},{beam_to[1] + 30:.1f} {beam_to[0] + 120:.1f},{beam_to[1] + 30:.1f}" fill="#fff2c0" opacity=".22" style="mix-blend-mode:screen"/>'
                  f'<circle cx="{beam_from[0]:.1f}" cy="{beam_from[1]:.1f}" r="14" fill="#fffbe8"/>')
     ov = ""
     if e > 0:
-        hx, hy, _ = p.cam.p(1.2, 0.05, -0.45)
+        hx, hy, _ = p.cam.p(1.9, 0.05, -0.5)
         ov = "".join(f'<circle cx="{hx + (k * 41 % 140) - 70:.0f}" cy="{hy + 30 + (t - tk) * (260 + k * 30):.0f}" r="{2 + k % 3}" fill="#d8cdb8" opacity="{max(0, .8 - (t - tk) * 2):.2f}"/>' for k in range(12))
         if t - tk < 0.06:
             ov += '<rect width="1080" height="1920" fill="#ffffff" opacity=".35"/>'
