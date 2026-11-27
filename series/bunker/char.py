@@ -117,8 +117,8 @@ FACES = {
     "neutral":    dict(bi=0, bo=0, ui=-1, uo=-1, lo=10, pr=9, mouth="line"),
     "worried":    dict(bi=-15, bo=4, ui=-8, uo=0, lo=13, pr=8, white=True, wr=2, mouth="worry"),
     "anxious":    dict(bi=-16, bo=5, ui=-9, uo=-1, lo=13, pr=7, white=True, wr=2, gaze=5, mouth="grimace", sweat=True),
-    "scared":     dict(bi=-19, bo=-2, ui=-15, uo=-12, lo=16, pr=5.5, white=True, wr=3, mouth="scream", sweat=True, pale=True),
-    "shocked":    dict(bi=-17, bo=-15, ui=-16, uo=-16, lo=17, pr=5, white=True, wr=3, mouth="O", pale=True),
+    "scared":     dict(bi=-20, bo=-4, eye="wide", rx=12, ry=13.5, tilt=10, pr=6.5, wr=3, mouth="fear", sweat=True),
+    "shocked":    dict(bi=-19, bo=-17, eye="wide", rx=13, ry=15, tilt=0, pr=5.5, wr=3, mouth="drop"),
     "angry":      dict(bi=12, bo=-7, ui=4, uo=-4, lo=6, pr=8.5, white=True, low=True, fr=True, mouth="teeth"),
     "sad":        dict(bi=-13, bo=6, ui=-3, uo=4, lo=10, pr=8, white=True, gy=3, wr=1, mouth="sad", tear=True),
     "happy":      dict(bi=-6, bo=-4, eye="happy", mouth="grin", cheeks=True),
@@ -193,7 +193,7 @@ def hair_behind(L, cx, cy):
 def eye(cx, cy, F, sg, blink, gaze):
     ex, ey = cx + sg * 30, cy + 2; kind = F.get("eye", "open"); s = ""
     gz = F.get("gaze", 0) + gaze; gy = F.get("gy", 0)
-    if blink and kind == "open":
+    if blink and kind in ("open", "wide"):
         kind = "blink"
     if kind == "open":
         ui, uo, lo = F.get("ui", -1), F.get("uo", -1), F.get("lo", 10)
@@ -214,6 +214,12 @@ def eye(cx, cy, F, sg, blink, gaze):
             s += f'<path d="M{xi:.1f} {ey + ui:.1f} C{xi + sg * 1:.1f} {ey + lo + 4:.1f} {xo - sg * 1:.1f} {ey + lo + 4:.1f} {xo:.1f} {ey + uo:.1f}" fill="none" stroke="{INK}" stroke-width="{2.8 if F.get("low") else 1.8}" stroke-linecap="round"/>'
         if F.get("_lashes"):
             s += f'<line x1="{xo + sg * 1:.1f}" y1="{ey + uo:.1f}" x2="{xo + sg * 7:.1f}" y2="{ey + uo - 5:.1f}" stroke="{INK}" stroke-width="2.6" stroke-linecap="round"/>'
+    elif kind == "wide":  # широко открытые круглые глаза с белками; верхнее веко — дуга по контуру, при испуге наклонена к переносице
+        rx, ry, tl = F.get("rx", 12), F.get("ry", 14), F.get("tilt", 0) * -sg
+        pr = F.get("pr", 6)
+        s += (f'<g transform="rotate({tl} {ex} {ey})"><ellipse cx="{ex}" cy="{ey}" rx="{rx}" ry="{ry}" fill="#fbf8f0" stroke="{INK}" stroke-width="2.4"/>'
+              f'<circle cx="{ex + gz:.1f}" cy="{ey + 1 + gy:.1f}" r="{pr}" fill="{INK}"/><circle cx="{ex + gz + pr * .4:.1f}" cy="{ey + 1 + gy - pr * .45:.1f}" r="{pr * .32:.1f}" fill="#fff"/>'
+              f'<path d="M{ex - rx - 1} {ey - 2} A{rx + 1} {ry + 1} 0 0 1 {ex + rx + 1} {ey - 2}" fill="none" stroke="{INK}" stroke-width="4.4" stroke-linecap="round"/></g>')
     elif kind == "blink":
         s += f'<path d="M{ex - 14} {ey + 3} Q{ex} {ey + 7} {ex + 14} {ey + 3}" fill="none" stroke="{INK}" stroke-width="4.4" stroke-linecap="round"/>'
     elif kind == "happy":
@@ -248,6 +254,8 @@ def mouth(mx, my, F, talk):
         "grin": f'<path d="M{mx - 20} {my - 5} Q{mx} {my - 1} {mx + 20} {my - 5} Q{mx + 14} {my + 18} {mx} {my + 18} Q{mx - 14} {my + 18} {mx - 20} {my - 5} Z" fill="{D_}" stroke="{INK}" stroke-width="3"/><path d="M{mx - 17} {my - 3} Q{mx} {my + 1} {mx + 17} {my - 3} L{mx + 14} {my + 4} Q{mx} {my + 7} {mx - 14} {my + 4} Z" fill="{T}"/>',
         "side": f'<path d="M{mx - 8} {my + 2} Q{mx + 4} {my + 1} {mx + 16} {my - 4}" {st}/>',
         "grimace": f'<rect x="{mx - 18}" y="{my - 6}" width="36" height="13" rx="4" fill="{T}" stroke="{INK}" stroke-width="2.8"/><path d="M{mx - 18} {my} L{mx + 18} {my} M{mx - 6} {my - 6} l0 13 M{mx + 6} {my - 6} l0 13" stroke="{INK}" stroke-width="1.4"/><path d="M{mx - 20} {my - 6} l-4 6 M{mx + 20} {my - 6} l4 6" fill="none" stroke="{INK}" stroke-width="2.4" stroke-linecap="round"/>',
+        "fear": f'<path d="M{mx - 15} {my + 6} Q{mx} {my - 6} {mx + 15} {my + 6} Q{mx} {my + 13} {mx - 15} {my + 6} Z" fill="{D_}" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/><path d="M{mx - 18} {my + 8} l-3 3 M{mx + 18} {my + 8} l3 3" fill="none" stroke="{INK}" stroke-width="2" stroke-linecap="round"/>',
+        "drop": f'<ellipse cx="{mx}" cy="{my + 9}" rx="11" ry="17" fill="{D_}" stroke="{INK}" stroke-width="3"/><path d="M{mx - 6} {my - 2} Q{mx} {my - 4} {mx + 6} {my - 2}" fill="none" stroke="#f6f2e8" stroke-width="3" stroke-linecap="round"/>',
         "scream": f'<path d="M{mx - 18} {my - 2} Q{mx} {my - 6} {mx + 18} {my - 2} L{mx + 14} {my + 16} Q{mx} {my + 21} {mx - 14} {my + 16} Z" fill="{D_}" stroke="{INK}" stroke-width="3" stroke-linejoin="round"/><path d="M{mx - 16} {my - 1} Q{mx} {my - 5} {mx + 16} {my - 1} L{mx + 15} {my + 4} L{mx - 15} {my + 4} Z" fill="{T}"/><path d="M{mx - 19} {my - 3} l-5 7 M{mx + 19} {my - 3} l5 7" fill="none" stroke="{INK}" stroke-width="2.4" stroke-linecap="round"/>',
         "O": f'<ellipse cx="{mx}" cy="{my + 6}" rx="13" ry="18" fill="{D_}" stroke="{INK}" stroke-width="3"/><ellipse cx="{mx}" cy="{my + 16}" rx="8" ry="5" fill="#c0605a"/>',
         "teeth": f'<path d="M{mx - 21} {my + 6} L{mx - 15} {my - 4} L{mx + 15} {my - 4} L{mx + 21} {my + 6} L{mx + 15} {my + 10} L{mx - 15} {my + 10} Z" fill="{T}" stroke="{INK}" stroke-width="2.8" stroke-linejoin="round"/><path d="M{mx - 18} {my + 3} L{mx + 18} {my + 3} M{mx - 6} {my - 4} l0 14 M{mx + 6} {my - 4} l0 14" stroke="{INK}" stroke-width="1.4"/>',
@@ -324,7 +332,7 @@ def head_side(L, F, blink=False, talk=0.0):
         s += f'<path d="M{cx - 74} {cy - 10} Q{cx - 80} {cy + 30} {cx - 50} {cy + 46} L{cx - 30} {cy + 20} L{cx - 40} {cy - 14} Z" fill="{c}" stroke="{INK}" stroke-width="{FINE}"/>'
     s += f'<path d="M{cx - 14} {cy - 10} Q{cx - 30} {cy + 4} {cx - 14} {cy + 20}" fill="{L["skin"]}" stroke="{INK}" stroke-width="{SW}"/>'  # ухо
     ex, ey = cx + 44, cy + 2; kind = F.get("eye", "open")
-    if blink and kind == "open":
+    if blink and kind in ("open", "wide"):
         kind = "closed"
     if kind == "open":
         ui, uo, lo = F.get("ui", -1), F.get("uo", -1), F.get("lo", 10)
@@ -338,6 +346,8 @@ def head_side(L, F, blink=False, talk=0.0):
         s += f'<path d="M{ex - 12} {ey + uo + 1:.1f} Q{ex} {ey + (ui + uo) / 2 - 4:.1f} {ex + 12} {ey + ui:.1f}" fill="none" stroke="{INK}" stroke-width="4.4" stroke-linecap="round"/>'
         if F.get("low"):
             s += f'<path d="M{ex - 9} {ey + lo - 1} Q{ex} {ey + lo + 4} {ex + 10} {ey + lo - 2}" fill="none" stroke="{INK}" stroke-width="2.4" stroke-linecap="round"/>'
+    elif kind == "wide":
+        s += f'<ellipse cx="{ex}" cy="{ey}" rx="9" ry="{F.get("ry", 14) * .95:.1f}" fill="#fbf8f0" stroke="{INK}" stroke-width="2.4"/><circle cx="{ex + 3}" cy="{ey + 1}" r="{F.get("pr", 6) * .9:.1f}" fill="{INK}"/><path d="M{ex - 10} {ey - 3} A10 14 0 0 1 {ex + 10} {ey - 3}" fill="none" stroke="{INK}" stroke-width="4.2" stroke-linecap="round"/>'
     elif kind == "happy":
         s += f'<path d="M{ex - 10} {ey + 4} Q{ex} {ey - 10} {ex + 10} {ey + 4}" fill="none" stroke="{INK}" stroke-width="4.4" stroke-linecap="round"/>'
     else:
@@ -351,8 +361,8 @@ def head_side(L, F, blink=False, talk=0.0):
     if L["mustache"]:
         s += f'<path d="M{cx + 46} {cy + 38} Q{cx + 58} {cy + 26} {cx + 74} {cy + 30} Q{cx + 66} {cy + 40} {cx + 46} {cy + 38} Z" fill="{L["mustache"]}" stroke="{INK}" stroke-width="{FINE}"/>'
     mk = F.get("mouth", "line"); mx, my = cx + 58, cy + 42
-    if talk > 0.05 or mk in ("O", "scream"):
-        s += f'<ellipse cx="{mx}" cy="{my + 2}" rx="8" ry="{3 + max(talk, .9 if mk in ("O", "scream") else 0) * 9:.1f}" fill="#4a2420" stroke="{INK}" stroke-width="2.4"/>'
+    if talk > 0.05 or mk in ("O", "scream", "drop", "fear"):
+        s += f'<ellipse cx="{mx}" cy="{my + 2}" rx="8" ry="{3 + max(talk, .9 if mk in ("O", "scream", "drop") else .4 if mk == "fear" else 0) * 9:.1f}" fill="#4a2420" stroke="{INK}" stroke-width="2.4"/>'
     elif mk in ("smile", "smile_s", "grin"):
         s += f'<path d="M{mx - 8} {my - 3} Q{mx + 2} {my + 6} {mx + 12} {my - 4}" fill="none" stroke="{INK}" stroke-width="3.4" stroke-linecap="round"/>'
     elif mk in ("frown", "wavy", "worry", "sad", "set"):
