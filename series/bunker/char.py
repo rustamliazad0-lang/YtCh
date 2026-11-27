@@ -99,7 +99,7 @@ BASE = dict(h=1000, skin="#ecdcc0", hair="short", hairc="#3b2c22", top="parka", 
             mustache=None, beard=None, glasses=False, lashes=False, lips=None, apron=None, badge=False, coatlen=-478)
 LOOKS = {
     # как в первой части: герой в красной толстовке и джинсах, дед седой в оливковой куртке, Макс в камуфляже
-    "hero": dict(hair="short", hairc="#2e221c", top="hoodie", topc="#b8322a", inner="#7a1e1a", pants="#2c3a56", stripes=False,
+    "hero": dict(hair="messy", hairc="#2e221c", top="hoodie", topc="#b8322a", inner="#7a1e1a", pants="#2c3a56", stripes=False,
                  boots="#f2f2ee", sole="#bdbdbd", hands="#ecdcc0", stubble=False),
     "friend": dict(h=1010, hair="buzz", hairc="#2a2420", topc="#5c6a3e", camo=True, pants="#4e5a36", stripes=False, boots="#2a2622", sole="#4a4038",
                    hands="#e4d0b0", stubble=True),
@@ -166,6 +166,16 @@ def stubble_dots(cx, cy, side=False, n=46, seed=5):
 
 def hair_front(L, cx, cy, back=False):
     h, c = L["hair"], L["hairc"]; Rr = R + 4; s = ""
+    if h == "messy" and not back:  # объём сверху и чёлка короткими прядями (как в части 1, но спокойнее)
+        Rm = R + 6
+        arc = [(cx + Rm * math.cos(math.radians(a)), cy - 2 + Rm * math.sin(math.radians(a))) for a in range(172, 369, 6)]
+        fringe = [(cx + 72, cy - 6), (cx + 63, cy - 36), (cx + 50, cy - 48), (cx + 40, cy - 42), (cx + 28, cy - 54), (cx + 16, cy - 46),
+                  (cx + 2, cy - 56), (cx - 12, cy - 47), (cx - 24, cy - 57), (cx - 36, cy - 48), (cx - 50, cy - 54), (cx - 62, cy - 36), (cx - 72, cy - 6)]
+        s += f'<polygon points="{pts(arc + fringe)}" fill="{c}" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>'
+        s += "".join(f'<path d="M{cx + x} {cy - 70} q{d} 14 {d * 2} 24" fill="none" stroke="{shade(c, 1.6)}" stroke-width="2.4" stroke-linecap="round" opacity=".7"/>' for x, d in ((-30, 4), (6, 5), (34, 4)))
+        return s
+    if h == "messy":
+        h = "short"
     if h in ("short", "long", "tails", "bun", "buzz"):
         a0, a1 = (175, 365) if not back else (160, 380)
         arc = [(cx + Rr * math.cos(math.radians(a)), cy + Rr * math.sin(math.radians(a))) for a in range(a0, a1 + 1, 8)]
@@ -288,7 +298,7 @@ def head_front(L, F, blink=False, talk=0.0, gaze=0, back=False):
         s += f'<path d="M{cx - 66} {cy + 8} Q{cx - 60} {cy + 86} {cx} {cy + 90} Q{cx + 60} {cy + 86} {cx + 66} {cy + 8} Q{cx + 40} {cy + 30} {cx + 22} {cy + 32} Q{cx} {cy + 26} {cx - 22} {cy + 32} Q{cx - 40} {cy + 30} {cx - 66} {cy + 8} Z" fill="{L["beard"]}" stroke="{INK}" stroke-width="{FINE}"/>'
     if F.get("pale"):
         pass
-    for k in range(F.get("wr", 0)):  # морщины на лбу
+    for k in range(0):  # морщины на лбу убраны по просьбе владельца
         y = cy - 36 - k * 7
         s += f'<path d="M{cx - 18 + k * 3} {y} Q{cx} {y - 4} {cx + 18 - k * 3} {y}" fill="none" stroke="{INK}" stroke-width="1.8" opacity=".55"/>'
     if F.get("fr"):
@@ -334,7 +344,12 @@ def head_side(L, F, blink=False, talk=0.0):
     if L["beard"]:
         s += f'<path d="M{cx - 20} {cy + 10} Q{cx - 10} {cy + 80} {cx + 40} {cy + 82} Q{cx + 70} {cy + 60} {cx + 72} {cy + 30} L{cx + 40} {cy + 32} Q{cx + 10} {cy + 34} {cx - 20} {cy + 10} Z" fill="{L["beard"]}" stroke="{INK}" stroke-width="{FINE}"/>'
     Rr = R + 4
-    if h in ("short", "long", "tails", "bun", "buzz"):
+    if h == "messy":
+        Rm = R + 8
+        arc = [(cx + Rm * math.cos(math.radians(a)), cy - 3 + Rm * math.sin(math.radians(a))) for a in range(140, 326, 8)]
+        line = [(cx + 58, cy - 40), (cx + 44, cy - 34), (cx + 36, cy - 46), (cx + 20, cy - 36), (cx + 6, cy - 44), (cx - 14, cy - 12), (cx - 40, cy + 22), (cx - 58, cy + 48)]
+        s += f'<polygon points="{pts(arc + line)}" fill="{c}" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>'
+    elif h in ("short", "long", "tails", "bun", "buzz"):
         arc = [(cx + Rr * math.cos(math.radians(a)), cy + Rr * math.sin(math.radians(a))) for a in range(140, 322, 8)]
         line = [(cx + 46, cy - 50), (cx + 12, cy - 40), (cx - 14, cy - 12), (cx - 40, cy + 22), (cx - 58, cy + 48)]
         op = ' opacity=".75"' if h == "buzz" else ""
@@ -363,7 +378,7 @@ def head_side(L, F, blink=False, talk=0.0):
         s += f'<path d="M{ex - 10} {ey - 1} Q{ex} {ey + 8} {ex + 10} {ey - 1}" fill="none" stroke="{INK}" stroke-width="4.4" stroke-linecap="round"/>'
     by = ey - 25; bi, bo = F.get("bi", 0), F.get("bo", 0)
     s += f'<path d="M{ex + 12} {by + bi} Q{ex} {by + (bi + bo) / 2 - 3} {ex - 12} {by + bo}" fill="none" stroke="{INK}" stroke-width="7.5" stroke-linecap="round"/>'
-    for k in range(F.get("wr", 0)):
+    for k in range(0):
         s += f'<path d="M{ex - 8} {cy - 36 - k * 7} Q{ex + 6} {cy - 40 - k * 7} {ex + 18} {cy - 36 - k * 7}" fill="none" stroke="{INK}" stroke-width="1.8" opacity=".55"/>'
     if L["glasses"]:
         s += f'<circle cx="{ex + 2}" cy="{ey + 2}" r="17" fill="#fff" fill-opacity=".12" stroke="{INK}" stroke-width="2.6"/><line x1="{ex - 15}" y1="{ey}" x2="{cx - 10}" y2="{cy - 4}" stroke="{INK}" stroke-width="2.4"/>'

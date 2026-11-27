@@ -356,6 +356,20 @@ def wheel_svg(x, y, r, col="#a8321e", spokes=3, ang=0.0, sw=None):
             + sp + f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r * .22:.1f}" fill="#3a3e44" stroke="{INK}" stroke-width="1.5"/>')
 
 
+def wheel3d(cam, cx, cy, cz, r, plane="y", col="#a8321e", spokes=3, ang=0.5):
+    """Штурвал, лежащий в плоскости крышки (plane='y' — горизонтально, 'z' — вертикально): обод, спицы и ступица проецируются."""
+    def P(a, rr):
+        if plane == "y":
+            return cam.p(cx + math.cos(a) * rr, cy, cz + math.sin(a) * rr)
+        return cam.p(cx + math.cos(a) * rr, cy + math.sin(a) * rr, cz)
+    rim = [P(k / 36 * math.tau, r) for k in range(36)]
+    hub = [P(k / 16 * math.tau, r * 0.22) for k in range(16)]
+    c = P(0, 0); w = max(1.5, 0.028 * cam.f / c[2])
+    sp = "".join(f'<line x1="{c[0]:.1f}" y1="{c[1]:.1f}" x2="{P(ang + k * math.tau / spokes, r)[0]:.1f}" y2="{P(ang + k * math.tau / spokes, r)[1]:.1f}" stroke="{col}" stroke-width="{w * .8:.1f}" stroke-linecap="round"/>' for k in range(spokes))
+    return (f'<polygon points="{_pts(rim)}" fill="none" stroke="{INK}" stroke-width="{w + 2.4:.1f}" stroke-linejoin="round"/><polygon points="{_pts(rim)}" fill="none" stroke="{col}" stroke-width="{w:.1f}" stroke-linejoin="round"/>'
+            + sp + f'<polygon points="{_pts(hub)}" fill="#3a3e44" stroke="{INK}" stroke-width="1.4"/>')
+
+
 def hatch_ceiling(pic, hx, hz, Y, r=0.42, open_=False, red=False):
     """Стальной люк в потолке, вид снизу: бетонный обод, стальная рама с болтами, крышка с рёбрами и штурвалом,
     четыре запора и петля. Открытый: тёмный (или красный) проём, крышка висит на петле."""
@@ -375,16 +389,14 @@ def hatch_ceiling(pic, hx, hz, Y, r=0.42, open_=False, red=False):
         for k in range(4):  # запоры
             a = k / 4 * math.tau; q = cam.p(hx + math.cos(a) * (r + 0.02), Y - 0.012, hz + math.sin(a) * (r + 0.02)); w = 0.05 * cam.f / q[2]
             s += f'<rect x="{q[0] - w:.1f}" y="{q[1] - w * .5:.1f}" width="{2 * w:.1f}" height="{w:.1f}" fill="#3a3e44" stroke="{INK}" stroke-width="1.2"/>'
-        c = cam.p(hx, Y - 0.012, hz); rr = r * 0.42 * cam.f / c[2]
-        s += wheel_svg(c[0], c[1], rr)
+        s += wheel3d(cam, hx, Y - 0.06, hz, r * 0.42, plane="y")
         h = cam.p(hx, Y - 0.01, hz + r + 0.06); w = 0.12 * cam.f / h[2]
         s += f'<rect x="{h[0] - w:.1f}" y="{h[1] - w * .3:.1f}" width="{2 * w:.1f}" height="{w * .6:.1f}" fill="#2e3238" stroke="{INK}" stroke-width="1.4"/>'
     else:
         s += f'<polygon points="{_pts(hole)}" fill="{"#3a0e0a" if red else "#0a0908"}"/>'
         lidv = [cam.p(hx + math.cos(a) * r * 0.96, Y - r * 0.96 + math.sin(a) * r * 0.96, hz + r + 0.02) for a in [k / 40 * math.tau for k in range(40)]]
         dl = min(q[2] for q in lidv)
-        c = cam.p(hx, Y - r * 0.96, hz + r + 0.03); rr = r * 0.42 * cam.f / c[2]
-        pic.raw(dl - 0.05, f'<polygon points="{_pts(lidv)}" fill="#6e7882" stroke="{INK}" stroke-width="2.2"/>' + wheel_svg(c[0], c[1], rr))
+        pic.raw(dl - 0.05, f'<polygon points="{_pts(lidv)}" fill="#6e7882" stroke="{INK}" stroke-width="2.2"/>' + wheel3d(cam, hx, Y - r * 0.96, hz + r + 0.07, r * 0.42, plane="z"))
     pic.raw(d, s)
 
 
@@ -910,8 +922,7 @@ def cutaway(cam, red=0.0, t=0.0, open_hatch=False):
     if not open_hatch:
         pic.box(LX - 0.56, LX + 0.56, 0.05, 0.16, -0.8, -0.2, "#7a848e", top="#8a949e")                # крышка
         pic.box(LX - 0.03, LX + 0.03, 0.16, 0.3, -0.53, -0.47, "#3a3e44")
-        w0, w1 = cam.p(LX - 0.24, 0.31, -0.5), cam.p(LX + 0.24, 0.31, -0.5)
-        pic.raw(min(w0[2], w1[2]) - 0.3, f'<ellipse cx="{(w0[0] + w1[0]) / 2:.1f}" cy="{w0[1]:.1f}" rx="{abs(w1[0] - w0[0]) / 2:.1f}" ry="{max(2, abs(w1[0] - w0[0]) * .08):.1f}" fill="none" stroke="#a8321e" stroke-width="{max(2, abs(w1[0] - w0[0]) * .06):.1f}"/>')
+        pic.raw(cam.p(LX, 0.31, -0.5)[2] - 0.3, wheel3d(cam, LX, 0.31, -0.5, 0.24, plane="y"))
     else:
         pic.box(LX + 0.5, LX + 0.62, 0.05, 1.17, -0.8, -0.2, "#7a848e", top="#8a949e")
     pic.box(LX + 0.56, LX + 0.68, 0.0, 0.14, -0.6, -0.4, "#2e3238")                                    # петля
