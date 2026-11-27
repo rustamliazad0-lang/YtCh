@@ -58,7 +58,7 @@ def punch(t):
     for k in KW:
         d = t - k
         if 0 <= d < 0.5:
-            v = max(v, math.sin(min(1, d / 0.12) * math.pi / 2) * (1 - max(0, d - 0.12) / 0.38))
+            v = max(v, math.sin(min(1, d / 0.2) * math.pi / 2) * (1 - max(0, d - 0.2) / 0.3))
     return v
 
 

@@ -91,13 +91,13 @@ class Pic:
             q = self.cam.p(lx, ly, lz); dep = max(0.3, sum(p[2] for p in P) / len(P))
             R = lr * self.cam.f / dep * 1.15; g = self.gid()
             warm = mix(color, lc, 0.25)
-            self.defs.append(f'<radialGradient id="{g}" gradientUnits="userSpaceOnUse" cx="{q[0]:.0f}" cy="{q[1]:.0f}" r="{R:.0f}"><stop offset="0" stop-color="{shade(warm, 1.22)}"/>'
+            self.defs.append(f'<radialGradient id="{g}" gradientUnits="userSpaceOnUse" cx="{q[0]:.1f}" cy="{q[1]:.1f}" r="{R:.1f}"><stop offset="0" stop-color="{shade(warm, 1.22)}"/>'
                              f'<stop offset=".45" stop-color="{shade(mix(color, lc, 0.12), 0.85)}"/><stop offset="1" stop-color="{shade(mix(color, "#1a2030", 0.25), self.base * 0.8)}"/></radialGradient>')
             fs = f'fill="url(#{g})"'
         if grad:  # вертикальный градиент: низ темнее/светлее
             g = self.gid(); top, bot = self.lit(grad[0], cx, cy, cz), self.lit(grad[1], cx, cy, cz)
             ys = [p[1] for p in P]
-            self.defs.append(f'<linearGradient id="{g}" gradientUnits="userSpaceOnUse" x1="0" y1="{min(ys):.0f}" x2="0" y2="{max(ys):.0f}"><stop offset="0" stop-color="{top}"/><stop offset="1" stop-color="{bot}"/></linearGradient>')
+            self.defs.append(f'<linearGradient id="{g}" gradientUnits="userSpaceOnUse" x1="0" y1="{min(ys):.1f}" x2="0" y2="{max(ys):.1f}"><stop offset="0" stop-color="{top}"/><stop offset="1" stop-color="{bot}"/></linearGradient>')
             fs = f'fill="url(#{g})"'
         st = f' stroke="{INK}" stroke-width="{lw * min(2.5, 3.0 / max(0.8, min(p[2] for p in P))):.2f}" stroke-linejoin="round"' if stroke else ""
         self.items.append((depth if depth is not None else max(p[2] for p in P), f'<polygon points="{d}" {fs}{st} opacity="{op}"/>'))
@@ -144,7 +144,7 @@ class Pic:
     def glow(self, X, Y, Z, r, color, op=0.55):
         x, y, d = self.cam.p(X, Y, Z); g = self.gid(); R = r * self.cam.f / d
         self.defs.append(f'<radialGradient id="{g}"><stop offset="0" stop-color="{color}" stop-opacity="{op}"/><stop offset=".45" stop-color="{color}" stop-opacity="{op * 0.35}"/><stop offset="1" stop-color="{color}" stop-opacity="0"/></radialGradient>')
-        self.top.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{R:.0f}" fill="url(#{g})" style="mix-blend-mode:screen"/>')
+        self.top.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{R:.1f}" fill="url(#{g})" style="mix-blend-mode:screen"/>')
 
     def svg(self, sky="#101014", grade=("#2a3550", "#ffb060"), grain=0.07, vignette=0.55, particles=None, ptime=0.0, overlay=""):
         body = "".join(s for _, s in sorted(self.items, key=lambda t: -t[0]))
@@ -157,7 +157,7 @@ class Pic:
                 x, y, r = rnd.uniform(0, W), rnd.uniform(0, H), rnd.uniform(1.5, 5) if kind == "snow" else rnd.uniform(0.8, 2.6)
                 v = r * (38 if kind == "snow" else 6); ph = rnd.uniform(0, 6.3)
                 y = (y + v * ptime) % H; x = (x + (18 if kind == "snow" else 10) * math.sin(ptime * 0.8 + ph)) % W
-                parts += f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.1f}" fill="{"#ffffff" if kind == "snow" else "#ffe6b8"}" opacity="{rnd.uniform(0.35, 0.9) if kind == "snow" else rnd.uniform(0.15, 0.5):.2f}"/>'
+                parts += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="{"#ffffff" if kind == "snow" else "#ffe6b8"}" opacity="{rnd.uniform(0.35, 0.9) if kind == "snow" else rnd.uniform(0.15, 0.5):.2f}"/>'
         gr = f'<rect width="{W}" height="{H}" filter="url(#grain)" opacity="{grain}" style="mix-blend-mode:overlay"/>' if grain else ""
         return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}"><defs>{defs}'
                 f'<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 1.2 -.35"/></filter>'
@@ -249,7 +249,7 @@ def ftext(pic, X, Y, Z, text, size, col="#2a221c", depth_bias=-0.03, weight=800,
 def sack(pic, X, Z, label="МУКА", col="#d8c8a0", w=0.5, h=0.55):
     pic.box(X - w / 2, X + w / 2, 0, h, Z - 0.18, Z + 0.18, col, top=shade(col, 1.08))
     x, y, d = pic.cam.p(X, h, Z); r = 0.12 * pic.cam.f / d
-    pic.raw(d - 0.05, f'<path d="M{x - r:.0f} {y:.0f} Q{x} {y - r * 1.6:.0f} {x + r:.0f} {y:.0f}" fill="{col}" stroke="{INK}" stroke-width="{max(.6, 3 / d):.1f}"/><line x1="{x - r * .5:.0f}" y1="{y - r * .4:.0f}" x2="{x + r * .5:.0f}" y2="{y - r * .4:.0f}" stroke="#6a4a2a" stroke-width="{max(.6, 4 / d):.1f}"/>')
+    pic.raw(d - 0.05, f'<path d="M{x - r:.1f} {y:.1f} Q{x} {y - r * 1.6:.1f} {x + r:.1f} {y:.1f}" fill="{col}" stroke="{INK}" stroke-width="{max(.6, 3 / d):.1f}"/><line x1="{x - r * .5:.1f}" y1="{y - r * .4:.1f}" x2="{x + r * .5:.1f}" y2="{y - r * .4:.1f}" stroke="#6a4a2a" stroke-width="{max(.6, 4 / d):.1f}"/>')
     ftext(pic, X, h * 0.45, Z + 0.19, label, 0.09, "#4a3a28")
 
 
@@ -280,7 +280,7 @@ def calendar(pic, X, Y, Z, marks=22):
 
 def wall_clock(pic, X, Y, Z):
     x, y, d = pic.cam.p(X, Y, Z); r = 0.16 * pic.cam.f / d
-    pic.raw(d - 0.05, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="#f4f0e4" stroke="{INK}" stroke-width="{r * .12:.1f}"/><line x1="{x:.0f}" y1="{y:.0f}" x2="{x:.0f}" y2="{y - r * .6:.0f}" stroke="{INK}" stroke-width="{r * .1:.1f}"/><line x1="{x:.0f}" y1="{y:.0f}" x2="{x + r * .45:.0f}" y2="{y + r * .2:.0f}" stroke="{INK}" stroke-width="{r * .1:.1f}"/>')
+    pic.raw(d - 0.05, f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="#f4f0e4" stroke="{INK}" stroke-width="{r * .12:.1f}"/><line x1="{x:.1f}" y1="{y:.1f}" x2="{x:.1f}" y2="{y - r * .6:.1f}" stroke="{INK}" stroke-width="{r * .1:.1f}"/><line x1="{x:.1f}" y1="{y:.1f}" x2="{x + r * .45:.1f}" y2="{y + r * .2:.1f}" stroke="{INK}" stroke-width="{r * .1:.1f}"/>')
 
 
 def radio_table(pic, X, Z):
@@ -290,16 +290,16 @@ def radio_table(pic, X, Z):
             pic.box(X + dx, X + dx + 0.05, 0, 0.72, Z + dz, Z + dz + 0.05, shade(WOOD, .8))
     pic.box(X - 0.28, X + 0.12, 0.78, 1.02, Z - 0.15, Z + 0.1, "#4a5a3a", top="#5c6c4a")
     x, y, d = pic.cam.p(X - 0.12, 0.9, Z + 0.11); r = 0.05 * pic.cam.f / d
-    pic.raw(d - 0.05, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="#d8c890" stroke="{INK}" stroke-width="{max(.6, r * .15):.1f}"/>')
+    pic.raw(d - 0.05, f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="#d8c890" stroke="{INK}" stroke-width="{max(.6, r * .15):.1f}"/>')
     a, b = pic.cam.p(X + 0.08, 1.02, Z), pic.cam.p(X + 0.3, 1.5, Z - 0.05)
-    pic.raw(a[2] - 0.05, f'<line x1="{a[0]:.0f}" y1="{a[1]:.0f}" x2="{b[0]:.0f}" y2="{b[1]:.0f}" stroke="#222" stroke-width="{max(1, 6 / a[2]):.1f}"/>')
+    pic.raw(a[2] - 0.05, f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#222" stroke-width="{max(1, 6 / a[2]):.1f}"/>')
     pic.jar(X + 0.3, 0.78, Z, 0.05, 0.12, "#e8e4d8", lid="#e8e4d8", label="#c0392b")
     pic.box(X - 0.45, X - 0.3, 0.78, 0.8, Z - 0.1, Z + 0.15, "#f2ecdc")
 
 
 def sag(pic, a3, b3, col="#151210", w=4, drop=0.18, depth=None):
     a, b = pic.cam.p(*a3), pic.cam.p(*b3); m = pic.cam.p((a3[0] + b3[0]) / 2, (a3[1] + b3[1]) / 2 - drop, (a3[2] + b3[2]) / 2)
-    pic.raw(depth if depth is not None else max(a[2], b[2]) - 0.05, f'<path d="M{a[0]:.0f} {a[1]:.0f} Q{2 * m[0] - (a[0] + b[0]) / 2:.0f} {2 * m[1] - (a[1] + b[1]) / 2:.0f} {b[0]:.0f} {b[1]:.0f}" fill="none" stroke="{col}" stroke-width="{max(1.2, w * 3 / m[2]):.1f}"/>')
+    pic.raw(depth if depth is not None else max(a[2], b[2]) - 0.05, f'<path d="M{a[0]:.1f} {a[1]:.1f} Q{2 * m[0] - (a[0] + b[0]) / 2:.1f} {2 * m[1] - (a[1] + b[1]) / 2:.1f} {b[0]:.1f} {b[1]:.1f}" fill="none" stroke="{col}" stroke-width="{max(1.2, w * 3 / m[2]):.1f}"/>')
 
 
 def bunker_details(pic):
@@ -324,11 +324,11 @@ def bunker_details(pic):
 
 def hanging_lamp(pic, X, Y, Z, color="#ffcf8a"):
     a, b = pic.cam.p(X, Y + 0.45, Z), pic.cam.p(X, Y, Z)
-    pic.raw(b[2] - 0.05, f'<line x1="{a[0]:.0f}" y1="{a[1]:.0f}" x2="{b[0]:.0f}" y2="{b[1]:.0f}" stroke="#1c1916" stroke-width="{3 / b[2] * 1.5:.1f}"/>')
+    pic.raw(b[2] - 0.05, f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#1c1916" stroke-width="{3 / b[2] * 1.5:.1f}"/>')
     x, y, d = pic.cam.p(X, Y - 0.08, Z); r = 0.085 * pic.cam.f / d
-    pic.raw(d - 0.05, f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{r:.0f}" ry="{r * 1.2:.0f}" fill="#fff4dc"/>'
-                      f'<g stroke="#2a2420" stroke-width="{r * 0.12:.1f}" fill="none"><ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{r * 1.15:.0f}" ry="{r * 1.35:.0f}"/><line x1="{x:.0f}" y1="{y - r * 1.35:.0f}" x2="{x:.0f}" y2="{y + r * 1.35:.0f}"/><line x1="{x - r * 1.15:.0f}" y1="{y:.0f}" x2="{x + r * 1.15:.0f}" y2="{y:.0f}"/></g>'
-                      f'<rect x="{x - r * 0.6:.0f}" y="{y - r * 1.6:.0f}" width="{r * 1.2:.0f}" height="{r * 0.4:.0f}" fill="#3a3530"/>')
+    pic.raw(d - 0.05, f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{r:.1f}" ry="{r * 1.2:.1f}" fill="#fff4dc"/>'
+                      f'<g stroke="#2a2420" stroke-width="{r * 0.12:.1f}" fill="none"><ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{r * 1.15:.1f}" ry="{r * 1.35:.1f}"/><line x1="{x:.1f}" y1="{y - r * 1.35:.1f}" x2="{x:.1f}" y2="{y + r * 1.35:.1f}"/><line x1="{x - r * 1.15:.1f}" y1="{y:.1f}" x2="{x + r * 1.15:.1f}" y2="{y:.1f}"/></g>'
+                      f'<rect x="{x - r * 0.6:.1f}" y="{y - r * 1.6:.1f}" width="{r * 1.2:.1f}" height="{r * 0.4:.1f}" fill="#3a3530"/>')
     pic.glow(X, Y - 0.08, Z, 1.0, color, 0.5)
 
 
@@ -349,17 +349,17 @@ def bunker(cam, hatch_open=False, torch=False, red=False):
     # пол и потолок
     pic.poly([(Wl, 0, Zf), (Wr, 0, Zf), (Wr, 0, Zb), (Wl, 0, Zb)], CONC_D, depth=99)
     for x in (-1.6, 0, 1.6):
-        A, B = cam.p(x, 0, Zf), cam.p(x, 0, Zb); pic.raw(98, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#2e2a24" stroke-width="2.5" opacity=".6"/>')
+        A, B = cam.p(x, 0, Zf), cam.p(x, 0, Zb); pic.raw(98, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="#2e2a24" stroke-width="2.5" opacity=".6"/>')
     for z in (0.0, -1.6, -3.0):
-        A, B = cam.p(Wl, 0, z), cam.p(Wr, 0, z); pic.raw(98, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#2e2a24" stroke-width="2.5" opacity=".6"/>')
-    x, y, d = cam.p(0.6, 0, -0.6); pic.raw(97, f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{1.0 * cam.f / d:.0f}" ry="{0.25 * cam.f / d:.0f}" fill="#4a4a50" opacity=".35"/>')
+        A, B = cam.p(Wl, 0, z), cam.p(Wr, 0, z); pic.raw(98, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="#2e2a24" stroke-width="2.5" opacity=".6"/>')
+    x, y, d = cam.p(0.6, 0, -0.6); pic.raw(97, f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{1.0 * cam.f / d:.1f}" ry="{0.25 * cam.f / d:.1f}" fill="#4a4a50" opacity=".35"/>')
     pic.poly([(Wl, Hc, Zf), (Wr, Hc, Zf), (Wr, Hc, Zb), (Wl, Hc, Zb)], "#6e675d", depth=99)
     # короб вентиляции вдоль левого угла потолка
     for z in [Zf - k * 0.5 for k in range(13)]:
         pic.box(-2.75, -2.25, 2.35, 2.75, z - 0.5, z, "#9aa1a8", top="#b8bec4", side="#7e858c")
     # кабели
     for dx, col in ((-1.5, "#141210"), (-1.38, "#5a2420")):
-        A, B = cam.p(dx, Hc - 0.06, Zf), cam.p(dx, Hc - 0.06, Zb); pic.raw(50, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="{col}" stroke-width="5"/>')
+        A, B = cam.p(dx, Hc - 0.06, Zf), cam.p(dx, Hc - 0.06, Zb); pic.raw(50, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="{col}" stroke-width="5"/>')
     # стеллажи слева
     shelf_unit(pic, Wl, -0.9, 0.7, side=-1, seed=3); shelf_unit(pic, Wl, -2.8, -1.2, side=-1, seed=5)
     # ящики и канистры у задней стены справа
@@ -384,7 +384,7 @@ def bunker(cam, hatch_open=False, torch=False, red=False):
         ring2 = [cam.p(hx + math.cos(a) * r * 0.55, Hc - 0.01, hz + math.sin(a) * r * 0.55) for a in [k / 32 * math.tau for k in range(32)]]
         pic.raw(dring - 0.11, f'<polygon points="{" ".join(f"{q[0]:.1f},{q[1]:.1f}" for q in ring2)}" fill="none" stroke="#9aa3ac" stroke-width="{9 / dring:.1f}"/>')
         a, b = cam.p(hx - r * 0.6, Hc - 0.01, hz), cam.p(hx + r * 0.6, Hc - 0.01, hz)
-        pic.raw(dring - 0.11, f'<line x1="{a[0]:.0f}" y1="{a[1]:.0f}" x2="{b[0]:.0f}" y2="{b[1]:.0f}" stroke="#9aa3ac" stroke-width="{9 / dring:.1f}"/>')
+        pic.raw(dring - 0.11, f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#9aa3ac" stroke-width="{9 / dring:.1f}"/>')
     for dx in (-0.24, 0.24):
         pic.box(hx + dx - 0.025, hx + dx + 0.025, 0, Hc, hz - r + 0.03, hz - r + 0.08, "#5d6670", side="#4a525a")
     for y in [0.3 + k * 0.32 for k in range(8)]:
@@ -402,7 +402,7 @@ def bunker(cam, hatch_open=False, torch=False, red=False):
     hanging_lamp(pic, -0.4, 2.35, -1.6)
     if torch:
         x, y, d = cam.p(hx + 0.1, Hc + 0.6, hz + 0.1)
-        pic.top.append(f'<polygon points="{x - 18:.0f},{y:.0f} {x + 18:.0f},{y:.0f} {x + 420:.0f},1920 {x - 380:.0f},1920" fill="#fff2cc" opacity=".08" style="mix-blend-mode:screen"/>')
+        pic.top.append(f'<polygon points="{x - 18:.1f},{y:.1f} {x + 18:.1f},{y:.1f} {x + 420:.1f},1920 {x - 380:.1f},1920" fill="#fff2cc" opacity=".08" style="mix-blend-mode:screen"/>')
     return pic
 
 
@@ -412,7 +412,7 @@ def bunker_up(cam, people_svg=""):
     Hc, hx, hz, r = 2.8, 1.0, -3.0, 0.42
     pic.poly([(-3.2, Hc, 2), (3.2, Hc, 2), (3.2, Hc, -4.4), (-3.2, Hc, -4.4)], "#3e3a35", depth=90)
     for z in (-1.6, -3.0):
-        A, B = cam.p(-3.2, Hc, z), cam.p(3.2, Hc, z); pic.raw(89, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#2e2a24" stroke-width="4" opacity=".6"/>')
+        A, B = cam.p(-3.2, Hc, z), cam.p(3.2, Hc, z); pic.raw(89, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="#2e2a24" stroke-width="4" opacity=".6"/>')
     ring = [cam.p(hx + math.cos(a) * r, Hc, hz + math.sin(a) * r) for a in [k / 48 * math.tau for k in range(48)]]
     pts = " ".join(f"{q[0]:.1f},{q[1]:.1f}" for q in ring)
     g = pic.gid()
@@ -420,9 +420,9 @@ def bunker_up(cam, people_svg=""):
                     f'<clipPath id="hc"><polygon points="{pts}"/></clipPath>')
     pic.raw(50, f'<polygon points="{pts}" fill="url(#{g})"/>')
     cx = sum(q[0] for q in ring) / len(ring); cy = sum(q[1] for q in ring) / len(ring)
-    pic.raw(49, f'<g clip-path="url(#hc)">{people_svg}<circle cx="{cx + 20:.0f}" cy="{cy + 10:.0f}" r="26" fill="#fffbe8"/><circle cx="{cx + 20:.0f}" cy="{cy + 10:.0f}" r="120" fill="#fff3d0" opacity=".25"/></g>')
+    pic.raw(49, f'<g clip-path="url(#hc)">{people_svg}<circle cx="{cx + 20:.1f}" cy="{cy + 10:.1f}" r="26" fill="#fffbe8"/><circle cx="{cx + 20:.1f}" cy="{cy + 10:.1f}" r="120" fill="#fff3d0" opacity=".25"/></g>')
     pic.raw(48, f'<polygon points="{pts}" fill="none" stroke="#7a838c" stroke-width="22"/><polygon points="{pts}" fill="none" stroke="#3a3e44" stroke-width="8"/>')
-    pic.top.append(f'<polygon points="{cx + 2:.0f},{cy + 10:.0f} {cx + 38:.0f},{cy + 10:.0f} {cx + 520:.0f},1920 {cx - 420:.0f},1920" fill="#fff2cc" opacity=".12" style="mix-blend-mode:screen"/>')
+    pic.top.append(f'<polygon points="{cx + 2:.1f},{cy + 10:.1f} {cx + 38:.1f},{cy + 10:.1f} {cx + 520:.1f},1920 {cx - 420:.1f},1920" fill="#fff2cc" opacity=".12" style="mix-blend-mode:screen"/>')
     for dx in (-0.24, 0.24):
         pic.box(hx + dx - 0.025, hx + dx + 0.025, 0, Hc, hz - r + 0.03, hz - r + 0.08, "#6a4a48")
     for y in [0.3 + k * 0.32 for k in range(8)]:
@@ -439,7 +439,7 @@ def market(cam):
         pic.box(k * 2.2 - 1.1, k * 2.2 + 1.1, 0, 3.2, -4.4, -4.0, BRICK, top="#e8ecf2")
         for v in (0.8, 1.6, 2.4):
             A, B = cam.p(k * 2.2 - 1.1, v, -4.0), cam.p(k * 2.2 + 1.1, v, -4.0)
-            pic.raw(A[2] - 0.05, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#5a3022" stroke-width="2" opacity=".5"/>')
+            pic.raw(A[2] - 0.05, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="#5a3022" stroke-width="2" opacity=".5"/>')
     pic.box(-3.0, -1.9, 0, 2.2, -3.95, -3.9, "#3a5a6a")
     pic.box(-1.3, 1.3, 0, 0.85, -1.9, -1.1, WOOD, top="#946a42")
     for x in (-1.25, 1.25):
@@ -462,7 +462,7 @@ def market(cam):
     pic.poly([(-1.5, 2.55, -2.1), (1.5, 2.55, -2.1), (1.5, 2.6, -2.05), (-1.5, 2.6, -2.05)], "#f2f4f8", stroke=False)   # снег на навесе
     for k in range(14):                                                            # гирлянда
         x = -1.5 + k * 3.0 / 13; yy = 2.28 - 0.08 * math.sin(k / 13 * math.pi)
-        q = cam.p(x, yy, -0.92); pic.raw(q[2] - 0.2, f'<circle cx="{q[0]:.0f}" cy="{q[1]:.0f}" r="{7 / q[2] * 1.6:.1f}" fill="#ffd070"/>'); pic.glow(x, yy, -0.92, 0.25, "#ffc860", 0.5)
+        q = cam.p(x, yy, -0.92); pic.raw(q[2] - 0.2, f'<circle cx="{q[0]:.1f}" cy="{q[1]:.1f}" r="{7 / q[2] * 1.6:.1f}" fill="#ffd070"/>'); pic.glow(x, yy, -0.92, 0.25, "#ffc860", 0.5)
     pic.box(0.6, 1.0, 1.0, 1.08, -1.6, -1.35, "#c8ccd0", top="#e0e4e8")
     pic.box(0.7, 0.9, 1.08, 1.3, -1.5, -1.45, "#c0392b")
     for k, (x, txt) in enumerate(((-0.9, "45₽"), (-0.32, "60₽"), (0.26, "80₽"), (0.84, "35₽"))):
@@ -482,9 +482,9 @@ def supermarket(cam):
     pic = Pic(cam, [(0, 3.1, -2.0, 7.0, "#eef4ff"), (0, 3.1, -6.0, 7.0, "#eef4ff")], base=0.55)
     pic.poly([(-3, 0, 3), (3, 0, 3), (3, 0, -12), (-3, 0, -12)], "#cfc8bc", depth=99)
     for z in [3 - k * 0.6 for k in range(26)]:
-        A, B = cam.p(-3, 0, z), cam.p(3, 0, z); pic.raw(98, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#a8a094" stroke-width="2"/>')
+        A, B = cam.p(-3, 0, z), cam.p(3, 0, z); pic.raw(98, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="#a8a094" stroke-width="2"/>')
     for x in (-1.8, -0.6, 0.6, 1.8):
-        A, B = cam.p(x, 0, 3), cam.p(x, 0, -12); pic.raw(98, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#a8a094" stroke-width="2"/>')
+        A, B = cam.p(x, 0, 3), cam.p(x, 0, -12); pic.raw(98, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="#a8a094" stroke-width="2"/>')
     pic.poly([(-3, 3.2, 3), (3, 3.2, 3), (3, 3.2, -12), (-3, 3.2, -12)], "#e8e6e0", stroke=False, depth=99)
     pic.poly([(-3, 0, -12), (3, 0, -12), (3, 3.2, -12), (-3, 3.2, -12)], "#d8d0c0", depth=98)
     for side in (-1, 1):
@@ -492,11 +492,11 @@ def supermarket(cam):
         pic.box(min(x, x + side * 0.6) - 0.0, max(x, x + side * 0.6), 0, 0.15, -11, 2.5, "#3a3d44")
         shelf_unit(pic, x + side * 0.55, -10.5, 2.4, side=side, levels=(0.3, 0.75, 1.2, 1.65, 2.1), seed=11 + side, kind="store")
         for z in range(-10, 3, 2):  # ценники
-            xx, yy, d = cam.p(x + side * 0.02, 0.62, z); pic.raw(d - 0.05, f'<rect x="{xx - 22 / d:.0f}" y="{yy:.0f}" width="{44 / d:.0f}" height="{22 / d:.0f}" fill="#f6d84a" stroke="{INK}" stroke-width="{1 / d:.1f}"/>')
+            xx, yy, d = cam.p(x + side * 0.02, 0.62, z); pic.raw(d - 0.05, f'<rect x="{xx - 22 / d:.1f}" y="{yy:.1f}" width="{44 / d:.1f}" height="{22 / d:.1f}" fill="#f6d84a" stroke="{INK}" stroke-width="{1 / d:.1f}"/>')
     for z, col in ((-3.5, "#c0392b"), (-7.5, "#2c6aa0")):                          # подвесные указатели
         pic.box(-0.5, 0.5, 2.55, 2.8, z - 0.02, z + 0.02, col, top=col)
         for xx in (-0.3, 0.3):
-            a, b = cam.p(xx, 2.8, z), cam.p(xx, 3.2, z); pic.raw(a[2], f'<line x1="{a[0]:.0f}" y1="{a[1]:.0f}" x2="{b[0]:.0f}" y2="{b[1]:.0f}" stroke="#555" stroke-width="2"/>')
+            a, b = cam.p(xx, 2.8, z), cam.p(xx, 3.2, z); pic.raw(a[2], f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#555" stroke-width="2"/>')
     for z in (0.5, -2.5, -5.5, -8.5):
         pic.box(-0.9, 0.9, 3.08, 3.14, z - 0.1, z + 0.1, "#fbfdff", stroke=False, emissive=True)
         pic.glow(0, 3.0, z, 2.2, "#f0f6ff", 0.45)
@@ -508,7 +508,7 @@ def pharmacy(cam):
     pic = Pic(cam, [(0, 2.9, -1.0, 5.0, "#f4fff8")], base=0.46)
     pic.poly([(-3, 0, 3), (3, 0, 3), (3, 0, -4), (-3, 0, -4)], "#d8dcd4", depth=99)
     for z in [3 - k * 0.5 for k in range(15)]:
-        A, B = cam.p(-3, 0, z), cam.p(3, 0, z); pic.raw(98, f'<line x1="{A[0]:.0f}" y1="{A[1]:.0f}" x2="{B[0]:.0f}" y2="{B[1]:.0f}" stroke="#b0b6ac" stroke-width="2"/>')
+        A, B = cam.p(-3, 0, z), cam.p(3, 0, z); pic.raw(98, f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="#b0b6ac" stroke-width="2"/>')
     pic.poly([(-3, 0, -4), (3, 0, -4), (3, 3.1, -4), (-3, 3.1, -4)], "#b8d4c4", depth=98)
     pic.poly([(-3, 0, -3.99), (3, 0, -3.99), (3, 1.0, -3.99), (-3, 1.0, -3.99)], "#5a8a74", depth=97.5)
     pic.poly([(-3, 0, 3), (-3, 0, -4), (-3, 3.1, -4), (-3, 3.1, 3)], "#a8c4b4", depth=97)
@@ -533,11 +533,11 @@ def pharmacy(cam):
         pic.box(x0, x0 + 0.7, 1.6, 2.5, -3.99, -3.97, col)
         ftext(pic, x0 + 0.35, 2.3, -3.96, txt, 0.08, "#2c6aa0")
         x, y, d = cam.p(x0 + 0.35, 1.95, -3.96); r = 0.18 * cam.f / d
-        pic.raw(d - 0.05, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="#f0a030" stroke="{INK}" stroke-width="2"/>')
+        pic.raw(d - 0.05, f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="#f0a030" stroke="{INK}" stroke-width="2"/>')
     pic.jar(-2.4, 0, -1.6, 0.18, 0.35, "#8a5a3a", lid="#6a4a2a", label="#8a5a3a")
     for k in range(7):
         x, y, d = cam.p(-2.4 + 0.25 * math.cos(k), 0.75 + 0.25 * math.sin(k * 1.7), -1.6); r = 0.16 * cam.f / d
-        pic.raw(d - 0.3, f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{r * .5:.0f}" ry="{r:.0f}" transform="rotate({k * 50} {x:.0f} {y:.0f})" fill="#4a8a4a" stroke="{INK}" stroke-width="1.5"/>')
+        pic.raw(d - 0.3, f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{r * .5:.1f}" ry="{r:.1f}" transform="rotate({k * 50} {x:.1f} {y:.1f})" fill="#4a8a4a" stroke="{INK}" stroke-width="1.5"/>')
     pic.box(-1.6, -1.55, 0, 1.0, -1.2, -1.15, "#c8a040"); pic.box(-0.6, -0.55, 0, 1.0, -1.2, -1.15, "#c8a040")
     pic.box(-1.6, -0.55, 0.92, 0.96, -1.19, -1.16, "#b8321e")
     return pic
@@ -559,13 +559,13 @@ def techroom(cam, red=False, t=0.0, fx=None):
         pic.box(-1.84, -1.76, y, y + 0.1, -2.44, -2.36, "#8a9198")
     pic.box(-1.84, -0.9, 2.1, 2.18, -2.44, -2.36, "#8a9198")
     x, y, d = cam.p(-1.8, 1.2, -2.35); r = 0.12 * cam.f / d
-    pic.raw(d - 0.3, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="none" stroke="#b8321e" stroke-width="{r * 0.25:.1f}"/><line x1="{x - r:.0f}" y1="{y:.0f}" x2="{x + r:.0f}" y2="{y:.0f}" stroke="#b8321e" stroke-width="{r * 0.2:.1f}"/>')
+    pic.raw(d - 0.3, f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="none" stroke="#b8321e" stroke-width="{r * 0.25:.1f}"/><line x1="{x - r:.1f}" y1="{y:.1f}" x2="{x + r:.1f}" y2="{y:.1f}" stroke="#b8321e" stroke-width="{r * 0.2:.1f}"/>')
     # ФВУ: серый короб, воздуховоды вверх, ручка-штурвал
     pic.box(-0.45, 0.45, 0, 1.1, -2.9, -2.4, "#6f7a72", top="#86918a")
     pic.box(-0.15, 0.15, 1.1, 2.6, -2.75, -2.55, "#9aa1a8", top="#b8bec4")
     pic.box(-0.3, 0.3, 0.75, 0.95, -2.39, -2.37, "#3a3e44")
     x, y, d = cam.p(0.3, 0.55, -2.35); r = 0.14 * cam.f / d
-    pic.raw(d - 0.3, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="none" stroke="#2a2a2e" stroke-width="{r * 0.18:.1f}"/><line x1="{x:.0f}" y1="{y:.0f}" x2="{x + r * 1.3:.0f}" y2="{y + r * 0.4:.0f}" stroke="#2a2a2e" stroke-width="{r * 0.2:.1f}"/>')
+    pic.raw(d - 0.3, f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="none" stroke="#2a2a2e" stroke-width="{r * 0.18:.1f}"/><line x1="{x:.1f}" y1="{y:.1f}" x2="{x + r * 1.3:.1f}" y2="{y + r * 0.4:.1f}" stroke="#2a2a2e" stroke-width="{r * 0.2:.1f}"/>')
     # генератор и бак солярки
     pic.box(1.2, 2.1, 0, 0.75, -2.8, -2.3, "#c8a03a", top="#d8b44a")
     pic.box(1.3, 2.0, 0.2, 0.55, -2.29, -2.27, "#2a2a2e")
@@ -574,7 +574,7 @@ def techroom(cam, red=False, t=0.0, fx=None):
     pic.box(2.18, 2.2, 0.5, 0.75, -2.3, -2.0, "#e8e4d8")
     water_pack(pic, -2.7, -2.1, n=2, rows=3)
     x, y, d = cam.p(-1.8, 1.65, -2.35); r = 0.08 * cam.f / d
-    pic.raw(d - 0.3, f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="#f4f0e4" stroke="{INK}" stroke-width="{r * .15:.1f}"/><line x1="{x:.0f}" y1="{y:.0f}" x2="{x + r * .6:.0f}" y2="{y - r * .4:.0f}" stroke="#c0302a" stroke-width="{r * .12:.1f}"/>')
+    pic.raw(d - 0.3, f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="#f4f0e4" stroke="{INK}" stroke-width="{r * .15:.1f}"/><line x1="{x:.1f}" y1="{y:.1f}" x2="{x + r * .6:.1f}" y2="{y - r * .4:.1f}" stroke="#c0302a" stroke-width="{r * .12:.1f}"/>')
     pic.box(0.7, 1.1, 1.3, 1.9, -2.99, -2.93, "#8a9198", top="#9aa1a8")
     for k in range(3):
         pic.box(0.76 + k * 0.12, 0.84 + k * 0.12, 1.55, 1.7, -2.93, -2.92, "#2a2a2e")
@@ -593,22 +593,22 @@ def techroom(cam, red=False, t=0.0, fx=None):
         for k in range(3):
             ph = (t * 1.6 + k / 3) % 1.0
             x, y, d = cam.p(-0.95, 2.05 - ph * 1.25, -2.4); r = 0.04 * cam.f / d
-            pic.raw(d - 0.4, f'<path d="M{x:.0f} {y - r * 1.6:.0f} Q{x + r:.0f} {y:.0f} {x:.0f} {y + r:.0f} Q{x - r:.0f} {y:.0f} {x:.0f} {y - r * 1.6:.0f} Z" fill="#7ac8f0" stroke="{INK}" stroke-width="{max(.6, r * .15):.1f}" opacity="{a:.2f}"/>')
-        x, y, d = cam.p(-0.95, 0.76, -2.4); pic.raw(d - 0.35, f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{0.12 * cam.f / d * a:.0f}" ry="{0.03 * cam.f / d * a:.0f}" fill="none" stroke="#7ac8f0" stroke-width="3"/>')
+            pic.raw(d - 0.4, f'<path d="M{x:.1f} {y - r * 1.6:.1f} Q{x + r:.1f} {y:.1f} {x:.1f} {y + r:.1f} Q{x - r:.1f} {y:.1f} {x:.1f} {y - r * 1.6:.1f} Z" fill="#7ac8f0" stroke="{INK}" stroke-width="{max(.6, r * .15):.1f}" opacity="{a:.2f}"/>')
+        x, y, d = cam.p(-0.95, 0.76, -2.4); pic.raw(d - 0.35, f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{0.12 * cam.f / d * a:.1f}" ry="{0.03 * cam.f / d * a:.1f}" fill="none" stroke="#7ac8f0" stroke-width="3"/>')
     if fx.get("air", 0) > 0:
         a = fx["air"]
         for k in range(5):
             ph = (t * 0.9 + k / 5) % 1.0
             x0, y0, d = cam.p(0.0, 2.45 - k * 0.08, -2.5); r = (0.3 + ph * 1.4) * cam.f / d
-            pic.top.append(f'<path d="M{x0 + r * 0.2:.0f} {y0 + r * .1:.0f} q{r * .5:.0f} {-r * .25:.0f} {r:.0f} 0 t{r * .6:.0f} {r * .1:.0f}" fill="none" stroke="#e8f4ff" stroke-width="5" stroke-linecap="round" opacity="{a * (1 - ph) * .8:.2f}"/>')
+            pic.top.append(f'<path d="M{x0 + r * 0.2:.1f} {y0 + r * .1:.1f} q{r * .5:.1f} {-r * .25:.1f} {r:.1f} 0 t{r * .6:.1f} {r * .1:.1f}" fill="none" stroke="#e8f4ff" stroke-width="5" stroke-linecap="round" opacity="{a * (1 - ph) * .8:.2f}"/>')
         x, y, d = cam.p(0.0, 0.85, -2.39); r = 0.2 * cam.f / d; ang = t * 600
-        pic.raw(d - 0.4, f'<g transform="rotate({ang:.0f} {x:.0f} {y:.0f})">' + "".join(f'<ellipse cx="{x:.0f}" cy="{y - r * .5:.0f}" rx="{r * .22:.0f}" ry="{r * .5:.0f}" transform="rotate({k * 120} {x:.0f} {y:.0f})" fill="#b8c0c8" stroke="{INK}" stroke-width="2"/>' for k in range(3)) + f'</g><circle cx="{x:.0f}" cy="{y:.0f}" r="{r * .15:.0f}" fill="#3a3e44"/>')
+        pic.raw(d - 0.4, f'<g transform="rotate({ang:.1f} {x:.1f} {y:.1f})">' + "".join(f'<ellipse cx="{x:.1f}" cy="{y - r * .5:.1f}" rx="{r * .22:.1f}" ry="{r * .5:.1f}" transform="rotate({k * 120} {x:.1f} {y:.1f})" fill="#b8c0c8" stroke="{INK}" stroke-width="2"/>' for k in range(3)) + f'</g><circle cx="{x:.1f}" cy="{y:.1f}" r="{r * .15:.1f}" fill="#3a3e44"/>')
     if fx.get("light", 0) > 0:
         a = fx["light"]
         for k in range(4):
             ph = (t * 0.7 + k / 4) % 1.0
             x, y, d = cam.p(1.8 + ph * 0.3, 2.6 + ph * 0.6, -2.65); r = (0.1 + ph * 0.35) * cam.f / d
-            pic.top.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="#8a8a8a" opacity="{a * (1 - ph) * .5:.2f}"/>')
+            pic.top.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="#8a8a8a" opacity="{a * (1 - ph) * .5:.2f}"/>')
         pic.glow(0.0, 2.1, -1.2, 2.2, "#ffd890", 0.35 * a + 0.12 * a * math.sin(t * 40))
         pic.glow(1.65, 0.4, -2.28, 0.6, "#7aff8a", 0.5 * a)
     return pic
@@ -656,7 +656,7 @@ def birch(pic, X, Z, h=5.0, seed=1):
         cx_, cy_, cz_ = X + rnd.uniform(-0.9, 0.9), h * rnd.uniform(0.55, 1.0), Z + rnd.uniform(-0.5, 0.5)
         x, y, d = c.p(cx_, cy_, cz_); r = rnd.uniform(0.25, 0.45) * c.f / d
         col = rnd.choice(["#d8a03a", "#c8a03a", "#e0b84a", "#a8a03a", "#8a9a3a"])
-        pic.raw(d - 0.2, f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="{r:.0f}" ry="{r * 0.8:.0f}" fill="{col}" stroke="{INK}" stroke-width="{max(0.6, 4 / d):.1f}"/><ellipse cx="{x - r * .25:.0f}" cy="{y - r * .25:.0f}" rx="{r * .45:.0f}" ry="{r * .3:.0f}" fill="{shade(col, 1.18)}"/>')
+        pic.raw(d - 0.2, f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{r:.1f}" ry="{r * 0.8:.1f}" fill="{col}" stroke="{INK}" stroke-width="{max(0.6, 4 / d):.1f}"/><ellipse cx="{x - r * .25:.1f}" cy="{y - r * .25:.1f}" rx="{r * .45:.1f}" ry="{r * .3:.1f}" fill="{shade(col, 1.18)}"/>')
 
 
 def pine(pic, X, Z, h=6.0, col="#3a5a3a"):
@@ -665,7 +665,7 @@ def pine(pic, X, Z, h=6.0, col="#3a5a3a"):
     for k in range(4):
         y0 = h * (0.22 + k * 0.18); w = 1.3 * (1 - k * 0.2)
         A, B, T = c.p(X - w, y0, Z), c.p(X + w, y0, Z), c.p(X, y0 + h * 0.32, Z)
-        pic.raw(A[2] - 0.1 - k * 0.01, f'<polygon points="{A[0]:.0f},{A[1]:.0f} {B[0]:.0f},{B[1]:.0f} {T[0]:.0f},{T[1]:.0f}" fill="{shade(col, 1 + k * .06)}" stroke="{INK}" stroke-width="{max(.6, 4 / A[2]):.1f}" stroke-linejoin="round"/>')
+        pic.raw(A[2] - 0.1 - k * 0.01, f'<polygon points="{A[0]:.1f},{A[1]:.1f} {B[0]:.1f},{B[1]:.1f} {T[0]:.1f},{T[1]:.1f}" fill="{shade(col, 1 + k * .06)}" stroke="{INK}" stroke-width="{max(.6, 4 / A[2]):.1f}" stroke-linejoin="round"/>')
 
 
 def village(cam):
@@ -691,7 +691,7 @@ def village(cam):
     pic.poly([(-80, 0, 12), (200, 0, 12), (200, 0, -160), (-80, 0, -160)], "#8a9a5a", grad=("#9aa86a", "#7a8a4a"), stroke=False, depth=999)
     pic.poly([(-30, 0.01, 2.2), (120, 0.01, 2.2), (120, 0.01, -0.3), (-30, 0.01, -0.3)], "#b8a888", stroke=False, depth=998)
     for k in range(60):  # колея и камешки
-        x = -10 + k * 1.3; q = cam.p(x, 0.01, 0.9 + 0.4 * math.sin(k)); pic.raw(q[2], f'<ellipse cx="{q[0]:.0f}" cy="{q[1]:.0f}" rx="{14 / q[2] * 3:.1f}" ry="{4 / q[2] * 3:.1f}" fill="#9a8a6a"/>')
+        x = -10 + k * 1.3; q = cam.p(x, 0.01, 0.9 + 0.4 * math.sin(k)); pic.raw(q[2], f'<ellipse cx="{q[0]:.1f}" cy="{q[1]:.1f}" rx="{14 / q[2] * 3:.1f}" ry="{4 / q[2] * 3:.1f}" fill="#9a8a6a"/>')
     # столбы ЛЭП вдоль дороги
     tops = []
     for k in range(10):
@@ -699,7 +699,7 @@ def village(cam):
         tops.append(cam.p(x, 6.0, 2.68))
     for a, b in zip(tops, tops[1:]):
         if a[2] > 0.3 and b[2] > 0.3:
-            pic.raw(max(a[2], b[2]), f'<path d="M{a[0]:.0f} {a[1]:.0f} Q{(a[0] + b[0]) / 2:.0f} {(a[1] + b[1]) / 2 + 30:.0f} {b[0]:.0f} {b[1]:.0f}" fill="none" stroke="#2a2420" stroke-width="2"/>')
+            pic.raw(max(a[2], b[2]), f'<path d="M{a[0]:.1f} {a[1]:.1f} Q{(a[0] + b[0]) / 2:.1f} {(a[1] + b[1]) / 2 + 30:.1f} {b[0]:.1f} {b[1]:.1f}" fill="none" stroke="#2a2420" stroke-width="2"/>')
     # дачи соседей за забором, уходят вдаль
     houses = [(-5.0, -0.6, -7.0, -3.6, 2.7, "#d8c8a0", "#7a8a94"), (9.0, 12.5, -9.5, -6.4, 2.5, "#a8c4b0", "#8a3a2a"),
               (19.0, 22.5, -10.0, -7.0, 2.6, "#e0b878", "#5a6a74"), (29.0, 32.0, -10.0, -7.2, 2.4, "#c8a8b8", "#8a4a38")]
@@ -717,5 +717,5 @@ def village(cam):
     pine(pic, -6.0, -6.0, 7.5); pine(pic, 27.0, -9.5, 8.0)
     for k in range(14):
         x = -8 + k * 4.3 + rnd.uniform(-0.5, 0.5); q = cam.p(x, 0.3, -1.5); r = 0.5 * cam.f / q[2]
-        pic.raw(q[2] + 0.1, f'<ellipse cx="{q[0]:.0f}" cy="{q[1]:.0f}" rx="{r:.0f}" ry="{r * .6:.0f}" fill="#5a7a3a" stroke="{INK}" stroke-width="{max(.6, 4 / q[2]):.1f}"/>')
+        pic.raw(q[2] + 0.1, f'<ellipse cx="{q[0]:.1f}" cy="{q[1]:.1f}" rx="{r:.1f}" ry="{r * .6:.1f}" fill="#5a7a3a" stroke="{INK}" stroke-width="{max(.6, 4 / q[2]):.1f}"/>')
     return pic
