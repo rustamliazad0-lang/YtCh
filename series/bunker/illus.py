@@ -328,7 +328,7 @@ def bunker_details(pic):
     crate_text(pic, 2.0, 2.42, 0.34, 0.68, -4.35, -3.95, "ИРП")
     calendar(pic, 0.15, 2.05, -4.39)
     wall_clock(pic, 0.15, 2.45, -4.39)
-    radio_table(pic, 2.55, -1.0)
+    radio_table(pic, 2.55, 1.0)
     x0, x1, z0, z1 = -1.4, 0.6, -2.4, -0.8
     pic.poly([(x0, 0.005, z1), (x1, 0.005, z1), (x1, 0.005, z0), (x0, 0.005, z0)], "#7a3a2a", depth=96)
     pic.poly([(x0 + 0.12, 0.006, z1 - 0.12), (x1 - 0.12, 0.006, z1 - 0.12), (x1 - 0.12, 0.006, z0 + 0.12), (x0 + 0.12, 0.006, z0 + 0.12)], "#9a5a3a", depth=95.9)
@@ -336,6 +336,130 @@ def bunker_details(pic):
         sag(pic, (-3.1 + k * 1.5, 2.6, -4.38), (-1.6 + k * 1.5, 2.6, -4.38), drop=0.12)
     sag(pic, (2.9, 2.5, -4.38), (3.15, 1.0, -1.0), col="#2a2a2a", drop=0.3)
     ftext(pic, -1.6, 2.35, -4.38, "ГРАФИК ДЕЖУРСТВ", 0.07, "#e8e2d0")
+
+
+# ---------- оборудование: люк, ФВУ, дизель-генератор ----------
+def _circle3(cam, cx, y, cz, r, n=40, plane="y"):
+    if plane == "y":
+        return [cam.p(cx + math.cos(a) * r, y, cz + math.sin(a) * r) for a in [k / n * math.tau for k in range(n)]]
+    return [cam.p(cx + math.cos(a) * r, y + math.sin(a) * r, cz) for a in [k / n * math.tau for k in range(n)]]
+
+
+def _pts(Q):
+    return " ".join(f"{q[0]:.1f},{q[1]:.1f}" for q in Q)
+
+
+def wheel_svg(x, y, r, col="#a8321e", spokes=3, ang=0.0, sw=None):
+    sw = sw or max(1.5, r * 0.16)
+    sp = "".join(f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{x + r * math.cos(ang + k * math.tau / spokes):.1f}" y2="{y + r * math.sin(ang + k * math.tau / spokes):.1f}" stroke="{col}" stroke-width="{sw * .8:.1f}" stroke-linecap="round"/>' for k in range(spokes))
+    return (f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="none" stroke="{INK}" stroke-width="{sw + 2.4:.1f}"/><circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="none" stroke="{col}" stroke-width="{sw:.1f}"/>'
+            + sp + f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r * .22:.1f}" fill="#3a3e44" stroke="{INK}" stroke-width="1.5"/>')
+
+
+def hatch_ceiling(pic, hx, hz, Y, r=0.42, open_=False, red=False):
+    """Стальной люк в потолке, вид снизу: бетонный обод, стальная рама с болтами, крышка с рёбрами и штурвалом,
+    четыре запора и петля. Открытый: тёмный (или красный) проём, крышка висит на петле."""
+    cam = pic.cam
+    col_ = _circle3(cam, hx, Y - 0.002, hz, r + 0.16); fr = _circle3(cam, hx, Y - 0.004, hz, r + 0.04); hole = _circle3(cam, hx, Y - 0.006, hz, r)
+    d = max(q[2] for q in col_) - 0.12
+    s = f'<polygon points="{_pts(col_)}" fill="#8a857a" stroke="{INK}" stroke-width="1.6"/><polygon points="{_pts(fr)}" fill="#4a5058" stroke="{INK}" stroke-width="2"/>'
+    for k in range(12):  # болты рамы
+        a = k / 12 * math.tau; q = cam.p(hx + math.cos(a) * (r + 0.1), Y - 0.005, hz + math.sin(a) * (r + 0.1))
+        s += f'<circle cx="{q[0]:.1f}" cy="{q[1]:.1f}" r="{max(1.2, 0.018 * cam.f / q[2]):.1f}" fill="#2a2e34"/>'
+    if not open_:
+        lid = _circle3(cam, hx, Y - 0.008, hz, r * 0.96)
+        s += f'<polygon points="{_pts(lid)}" fill="#7a848e" stroke="{INK}" stroke-width="2.2"/>'
+        for k in range(4):  # рёбра жёсткости
+            a = k / 4 * math.tau + math.pi / 4; A = cam.p(hx, Y - 0.01, hz); B = cam.p(hx + math.cos(a) * r * 0.9, Y - 0.01, hz + math.sin(a) * r * 0.9)
+            s += f'<line x1="{A[0]:.1f}" y1="{A[1]:.1f}" x2="{B[0]:.1f}" y2="{B[1]:.1f}" stroke="#5a636c" stroke-width="{max(2, 0.04 * cam.f / A[2]):.1f}"/>'
+        for k in range(4):  # запоры
+            a = k / 4 * math.tau; q = cam.p(hx + math.cos(a) * (r + 0.02), Y - 0.012, hz + math.sin(a) * (r + 0.02)); w = 0.05 * cam.f / q[2]
+            s += f'<rect x="{q[0] - w:.1f}" y="{q[1] - w * .5:.1f}" width="{2 * w:.1f}" height="{w:.1f}" fill="#3a3e44" stroke="{INK}" stroke-width="1.2"/>'
+        c = cam.p(hx, Y - 0.012, hz); rr = r * 0.42 * cam.f / c[2]
+        s += wheel_svg(c[0], c[1], rr)
+        h = cam.p(hx, Y - 0.01, hz + r + 0.06); w = 0.12 * cam.f / h[2]
+        s += f'<rect x="{h[0] - w:.1f}" y="{h[1] - w * .3:.1f}" width="{2 * w:.1f}" height="{w * .6:.1f}" fill="#2e3238" stroke="{INK}" stroke-width="1.4"/>'
+    else:
+        s += f'<polygon points="{_pts(hole)}" fill="{"#3a0e0a" if red else "#0a0908"}"/>'
+        lidv = [cam.p(hx + math.cos(a) * r * 0.96, Y - r * 0.96 + math.sin(a) * r * 0.96, hz + r + 0.02) for a in [k / 40 * math.tau for k in range(40)]]
+        dl = min(q[2] for q in lidv)
+        c = cam.p(hx, Y - r * 0.96, hz + r + 0.03); rr = r * 0.42 * cam.f / c[2]
+        pic.raw(dl - 0.05, f'<polygon points="{_pts(lidv)}" fill="#6e7882" stroke="{INK}" stroke-width="2.2"/>' + wheel_svg(c[0], c[1], rr))
+    pic.raw(d, s)
+
+
+class _Shift:
+    """Временно сдвигает начало координат по высоте (оборудование рисуется от пола y=0)."""
+    def __init__(self, pic, dy):
+        self.pic, self.dy = pic, dy
+
+    def __enter__(self):
+        c = self.pic.cam; self.old = c
+        self.pic.cam = Cam(x=c.x, y=c.y - self.dy, z=c.z, yaw=c.yaw, pitch=c.pitch, f=c.f, vx=c.vx, vy=c.vy)
+
+    def __exit__(self, *a):
+        self.pic.cam = self.old
+
+
+def fvu(pic, x, z, t=0.0, on=True, label="ФВУ-1", Hc=2.6, manual=False):
+    """Фильтровентиляционная установка у стены (лицом к камере): два фильтра-поглотителя (цилиндры с бандажами),
+    вентилятор в улитке с электромотором и ручным приводом, соединительные трубы, воздуховод в потолок, манометр, табличка."""
+    cam = pic.cam
+    pic.box(x - 0.75, x + 0.75, 0, 0.1, z - 0.55, z - 0.02, "#3a3e44", top="#4a4e56")                       # рама
+    for k, fx_ in enumerate((x - 0.48, x - 0.12)):                                                          # фильтры-поглотители
+        pic.jar(fx_, 0.1, z - 0.3, 0.17, 1.0, "#6a7a4a", lid="#7a8a5a", label="#56643a")
+        for yy in (0.32, 0.72):
+            a, b = cam.p(fx_ - 0.17, 0.1 + yy, z - 0.13), cam.p(fx_ + 0.17, 0.1 + yy, z - 0.13)
+            pic.raw(a[2] - 0.05, f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#3a4428" stroke-width="{max(1.5, 0.03 * cam.f / a[2]):.1f}"/>')
+        pic.box(fx_ - 0.04, fx_ + 0.04, 1.1, 1.3, z - 0.34, z - 0.26, "#8a9198")
+    pic.box(x - 0.52, x + 0.5, 1.26, 1.36, z - 0.35, z - 0.25, "#8a9198", top="#9aa1a8")                   # коллектор
+    pic.box(x + 0.15, x + 0.7, 0.1, 0.72, z - 0.5, z - 0.1, "#7a848c", top="#8e989f")                       # корпус вентилятора
+    c = cam.p(x + 0.42, 0.42, z - 0.09); rr = 0.22 * cam.f / c[2]
+    blades = "".join(f'<path d="M{c[0]:.1f} {c[1]:.1f} q{rr * .5 * math.cos(t * 30 * on + k * 1.257 + .6):.1f} {rr * .5 * math.sin(t * 30 * on + k * 1.257 + .6):.1f} {rr * .85 * math.cos(t * 30 * on + k * 1.257):.1f} {rr * .85 * math.sin(t * 30 * on + k * 1.257):.1f}" fill="none" stroke="#c8d0d8" stroke-width="{max(1.5, rr * .12):.1f}" stroke-linecap="round"/>' for k in range(5))
+    pic.raw(c[2] - 0.05, f'<circle cx="{c[0]:.1f}" cy="{c[1]:.1f}" r="{rr:.1f}" fill="#2a2e34" stroke="{INK}" stroke-width="2"/>{blades}<circle cx="{c[0]:.1f}" cy="{c[1]:.1f}" r="{rr * .2:.1f}" fill="#5a636c"/>')
+    pic.jar(x + 0.42, 0.72, z - 0.3, 0.13, 0.26, "#3a4a6a", lid="#4a5a7a", label="#2a3a5a")                 # электромотор
+    pic.box(x + 0.15, x + 0.27, 1.0, Hc, z - 0.38, z - 0.24, "#a8b0b8", top="#b8c0c8")                        # воздуховод в потолок
+    pic.box(x + 0.15, x + 0.27, 0.72, 1.36, z - 0.38, z - 0.24, "#a8b0b8")
+    h = cam.p(x + 0.72, 0.45, z - 0.25); hr = 0.14 * cam.f / h[2]; ang = t * 9 if manual else 0.6
+    pic.raw(h[2] - 0.06, f'<line x1="{h[0]:.1f}" y1="{h[1]:.1f}" x2="{h[0] + hr * math.cos(ang):.1f}" y2="{h[1] + hr * math.sin(ang):.1f}" stroke="#2a2a2e" stroke-width="{max(2, hr * .18):.1f}" stroke-linecap="round"/>'
+                         f'<circle cx="{h[0] + hr * math.cos(ang):.1f}" cy="{h[1] + hr * math.sin(ang):.1f}" r="{max(2, hr * .2):.1f}" fill="#a8321e" stroke="{INK}" stroke-width="1.2"/>')
+    g = cam.p(x - 0.3, 1.31, z - 0.24); gr = 0.06 * cam.f / g[2]
+    pic.raw(g[2] - 0.07, f'<circle cx="{g[0]:.1f}" cy="{g[1]:.1f}" r="{gr:.1f}" fill="#f4f0e4" stroke="{INK}" stroke-width="1.4"/><line x1="{g[0]:.1f}" y1="{g[1]:.1f}" x2="{g[0] + gr * .7:.1f}" y2="{g[1] - gr * .4:.1f}" stroke="#c0302a" stroke-width="{max(1, gr * .15):.1f}"/>')
+    lamp = "#3aff7a" if on else "#5a2020"
+    l_ = cam.p(x + 0.55, 0.62, z - 0.09); pic.raw(l_[2] - 0.06, f'<circle cx="{l_[0]:.1f}" cy="{l_[1]:.1f}" r="{max(1.5, 0.025 * cam.f / l_[2]):.1f}" fill="{lamp}"/>')
+    pic.box(x - 0.5, x - 0.1, 0.02, 0.09, z - 0.02, z - 0.01, "#e8e4d0")
+    ftext(pic, x - 0.3, 0.035, z, label, 0.055, "#2a2a2a")
+
+
+def generator(pic, x0, z, t=0.0, on=False, Hc=2.6):
+    """Дизель-генератор на раме: радиатор с решёткой, двигатель с головкой и рёбрами, генератор тока с вентиляционными
+    прорезями, пульт с приборами, глушитель и выхлопная труба в потолок, топливный шланг. Работает: дрожит, горит лампа."""
+    cam = pic.cam; j = 0.004 * math.sin(t * 90) if on else 0.0
+    pic.box(x0, x0 + 1.5, 0, 0.12, z - 0.62, z - 0.05, "#2e3238", top="#3a3e46")                               # рама
+    pic.box(x0 + 0.02, x0 + 0.22, 0.12 + j, 0.82 + j, z - 0.58, z - 0.1, "#3a3e44", top="#4a4e56")             # радиатор
+    for k in range(8):
+        y = 0.2 + k * 0.08 + j; a, b = cam.p(x0 + 0.22, y, z - 0.55), cam.p(x0 + 0.22, y, z - 0.12)
+        A2, B2 = cam.p(x0 + 0.04, y, z - 0.09), cam.p(x0 + 0.2, y, z - 0.09)
+        pic.raw(A2[2] - 0.04, f'<line x1="{A2[0]:.1f}" y1="{A2[1]:.1f}" x2="{B2[0]:.1f}" y2="{B2[1]:.1f}" stroke="#1a1c20" stroke-width="{max(1, 0.012 * cam.f / A2[2]):.1f}"/>')
+    pic.box(x0 + 0.22, x0 + 0.8, 0.12 + j, 0.7 + j, z - 0.5, z - 0.15, "#d8a030", top="#e8b444")                 # двигатель
+    pic.box(x0 + 0.28, x0 + 0.74, 0.7 + j, 0.82 + j, z - 0.45, z - 0.2, "#b8862a", top="#c89838")                # головка блока
+    for k in range(5):
+        xx = x0 + 0.3 + k * 0.1; a, b = cam.p(xx, 0.2 + j, z - 0.14), cam.p(xx, 0.62 + j, z - 0.14)
+        pic.raw(a[2] - 0.04, f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#a87a20" stroke-width="{max(1, 0.012 * cam.f / a[2]):.1f}"/>')
+    pic.box(x0 + 0.8, x0 + 1.4, 0.15 + j, 0.62 + j, z - 0.52, z - 0.13, "#3a4a5a", top="#4a5a6a")               # генератор тока
+    for k in range(6):
+        xx = x0 + 0.86 + k * 0.09; a, b = cam.p(xx, 0.3 + j, z - 0.12), cam.p(xx, 0.48 + j, z - 0.12)
+        pic.raw(a[2] - 0.04, f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#1e2630" stroke-width="{max(1.2, 0.02 * cam.f / a[2]):.1f}"/>')
+    pic.box(x0 + 0.95, x0 + 1.38, 0.62 + j, 0.98 + j, z - 0.3, z - 0.15, "#2a2e34", top="#3a3e44")              # пульт
+    for k, xx in enumerate((x0 + 1.04, x0 + 1.16)):
+        g = cam.p(xx, 0.86 + j, z - 0.145); gr = 0.04 * cam.f / g[2]
+        pic.raw(g[2] - 0.05, f'<circle cx="{g[0]:.1f}" cy="{g[1]:.1f}" r="{gr:.1f}" fill="#f4f0e4" stroke="{INK}" stroke-width="1"/><line x1="{g[0]:.1f}" y1="{g[1]:.1f}" x2="{g[0] + gr * .7 * math.cos(-1 - on * (0.8 + k * .3) + 0.05 * math.sin(t * 20)):.1f}" y2="{g[1] + gr * .7 * math.sin(-1 - on * (0.8 + k * .3)):.1f}" stroke="#c0302a" stroke-width="{max(.8, gr * .15):.1f}"/>')
+    l_ = cam.p(x0 + 1.3, 0.86 + j, z - 0.145); pic.raw(l_[2] - 0.05, f'<circle cx="{l_[0]:.1f}" cy="{l_[1]:.1f}" r="{max(1.5, 0.025 * cam.f / l_[2]):.1f}" fill="{"#3aff7a" if on else "#5a2020"}"/>')
+    pic.box(x0 + 0.35, x0 + 0.75, 0.86 + j, 0.98 + j, z - 0.42, z - 0.26, "#5a5e64", top="#6a6e74")             # глушитель
+    pic.box(x0 + 0.6, x0 + 0.68, 0.98, Hc, z - 0.36, z - 0.28, "#4a4a4e", top="#5a5a5e")                       # выхлоп в потолок
+    pic.box(x0 + 0.22, x0 + 0.26, 0.02, 0.3, z - 0.04, z - 0.02, "#1a1a1a")                                    # топливный шланг
+
+
 
 
 def hanging_lamp(pic, X, Y, Z, color="#ffcf8a"):
@@ -392,15 +516,7 @@ def bunker(cam, hatch_open=False, torch=False, red=False):
         pic.box(x0, x0 + 0.08, 0, 0.42, -3.7, -3.4, shade(WOOD, 0.8))
     # люк в потолке и лестница
     hx, hz, r = 1.0, -3.0, 0.42
-    ring = [cam.p(hx + math.cos(a) * r, Hc - 0.005, hz + math.sin(a) * r) for a in [k / 40 * math.tau for k in range(40)]]
-    dring = max(q[2] for q in ring)
-    inner = "#2a0e0a" if (hatch_open and red) else ("#0a0908" if hatch_open else "#3d434a")
-    pic.raw(dring - 0.1, f'<polygon points="{" ".join(f"{q[0]:.1f},{q[1]:.1f}" for q in ring)}" fill="{inner}" stroke="#20242a" stroke-width="{14 / dring:.1f}"/>')
-    if not hatch_open:
-        ring2 = [cam.p(hx + math.cos(a) * r * 0.55, Hc - 0.01, hz + math.sin(a) * r * 0.55) for a in [k / 32 * math.tau for k in range(32)]]
-        pic.raw(dring - 0.11, f'<polygon points="{" ".join(f"{q[0]:.1f},{q[1]:.1f}" for q in ring2)}" fill="none" stroke="#9aa3ac" stroke-width="{9 / dring:.1f}"/>')
-        a, b = cam.p(hx - r * 0.6, Hc - 0.01, hz), cam.p(hx + r * 0.6, Hc - 0.01, hz)
-        pic.raw(dring - 0.11, f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#9aa3ac" stroke-width="{9 / dring:.1f}"/>')
+    hatch_ceiling(pic, hx, hz, Hc, r, open_=hatch_open, red=red)
     for dx in (-0.24, 0.24):
         pic.box(hx + dx - 0.025, hx + dx + 0.025, 0, Hc, hz - r + 0.03, hz - r + 0.08, "#5d6670", side="#4a525a")
     for y in [0.3 + k * 0.32 for k in range(8)]:
@@ -576,16 +692,8 @@ def techroom(cam, red=False, t=0.0, fx=None):
     pic.box(-1.84, -0.9, 2.1, 2.18, -2.44, -2.36, "#8a9198")
     x, y, d = cam.p(-1.8, 1.2, -2.35); r = 0.12 * cam.f / d
     pic.raw(d - 0.3, f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="none" stroke="#b8321e" stroke-width="{r * 0.25:.1f}"/><line x1="{x - r:.1f}" y1="{y:.1f}" x2="{x + r:.1f}" y2="{y:.1f}" stroke="#b8321e" stroke-width="{r * 0.2:.1f}"/>')
-    # ФВУ: серый короб, воздуховоды вверх, ручка-штурвал
-    pic.box(-0.45, 0.45, 0, 1.1, -2.9, -2.4, "#6f7a72", top="#86918a")
-    pic.box(-0.15, 0.15, 1.1, 2.6, -2.75, -2.55, "#9aa1a8", top="#b8bec4")
-    pic.box(-0.3, 0.3, 0.75, 0.95, -2.39, -2.37, "#3a3e44")
-    x, y, d = cam.p(0.3, 0.55, -2.35); r = 0.14 * cam.f / d
-    pic.raw(d - 0.3, f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="none" stroke="#2a2a2e" stroke-width="{r * 0.18:.1f}"/><line x1="{x:.1f}" y1="{y:.1f}" x2="{x + r * 1.3:.1f}" y2="{y + r * 0.4:.1f}" stroke="#2a2a2e" stroke-width="{r * 0.2:.1f}"/>')
-    # генератор и бак солярки
-    pic.box(1.2, 2.1, 0, 0.75, -2.8, -2.3, "#c8a03a", top="#d8b44a")
-    pic.box(1.3, 2.0, 0.2, 0.55, -2.29, -2.27, "#2a2a2e")
-    pic.box(1.75, 1.85, 0.75, 2.6, -2.7, -2.6, "#4a4a4e")
+    fvu(pic, -0.1, -2.4, t=t, on=bool((fx or {}).get("air", 0) > 0.05), label="ФВУ-1", Hc=Hc)
+    generator(pic, 1.05, -2.25, t=t, on=bool((fx or {}).get("light", 0) > 0.05), Hc=Hc)
     pic.box(2.2, 2.9, 0, 1.2, -2.95, -1.6, "#4a6a3a", top="#5c7c4a")
     pic.box(2.18, 2.2, 0.5, 0.75, -2.3, -2.0, "#e8e4d8")
     water_pack(pic, -2.7, -2.1, n=2, rows=3)
@@ -615,18 +723,17 @@ def techroom(cam, red=False, t=0.0, fx=None):
         a = fx["air"]
         for k in range(5):
             ph = (t * 0.9 + k / 5) % 1.0
-            x0, y0, d = cam.p(0.0, 2.45 - k * 0.08, -2.5); r = (0.3 + ph * 1.4) * cam.f / d
+            x0, y0, d = cam.p(0.11, 2.45 - k * 0.08, -2.7); r = (0.3 + ph * 1.4) * cam.f / d
             pic.top.append(f'<path d="M{x0 + r * 0.2:.1f} {y0 + r * .1:.1f} q{r * .5:.1f} {-r * .25:.1f} {r:.1f} 0 t{r * .6:.1f} {r * .1:.1f}" fill="none" stroke="#e8f4ff" stroke-width="5" stroke-linecap="round" opacity="{a * (1 - ph) * .8:.2f}"/>')
-        x, y, d = cam.p(0.0, 0.85, -2.39); r = 0.2 * cam.f / d; ang = t * 600
-        pic.raw(d - 0.4, f'<g transform="rotate({ang:.1f} {x:.1f} {y:.1f})">' + "".join(f'<ellipse cx="{x:.1f}" cy="{y - r * .5:.1f}" rx="{r * .22:.1f}" ry="{r * .5:.1f}" transform="rotate({k * 120} {x:.1f} {y:.1f})" fill="#b8c0c8" stroke="{INK}" stroke-width="2"/>' for k in range(3)) + f'</g><circle cx="{x:.1f}" cy="{y:.1f}" r="{r * .15:.1f}" fill="#3a3e44"/>')
+        pass
     if fx.get("light", 0) > 0:
         a = fx["light"]
         for k in range(4):
             ph = (t * 0.7 + k / 4) % 1.0
-            x, y, d = cam.p(1.8 + ph * 0.3, 2.6 + ph * 0.6, -2.65); r = (0.1 + ph * 0.35) * cam.f / d
+            x, y, d = cam.p(1.69 + ph * 0.3, 2.6 + ph * 0.6, -2.57); r = (0.1 + ph * 0.35) * cam.f / d
             pic.top.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="#8a8a8a" opacity="{a * (1 - ph) * .5:.2f}"/>')
         pic.glow(0.0, 2.1, -1.2, 2.2, "#ffd890", 0.35 * a + 0.12 * a * math.sin(t * 40))
-        pic.glow(1.65, 0.4, -2.28, 0.6, "#7aff8a", 0.5 * a)
+        pic.glow(2.35, 0.86, -2.35, 0.4, "#7aff8a", 0.5 * a)
     return pic
 
 
@@ -769,13 +876,13 @@ def cutaway(cam, red=0.0, t=0.0, open_hatch=False):
         pic.box(x, x + 0.6, YT - 0.1, YT - 0.05, ZB + 0.6, ZB + 1.2, "#f4f2ea", stroke=False, emissive=True)
     for x in (-5.0, -1.6, 1.8, 5.2):
         pic.glow(x, YT - 0.25, -0.8, 1.3, "#ffe0a0", 0.55)
-    # слева: ФВУ-1 (зелёная, работает) и ФВУ-2, труба воздуха наверх
-    for k, (x0, col) in enumerate(((-7.0, "#2e9a5a"), (-6.2, "#5a6470"))):
-        pic.box(x0, x0 + 0.7, YB, YB + 1.1, ZB + 0.2, ZB + 0.8, col, top=shade(col, 1.2))
-        x, y, d = cam.p(x0 + 0.35, YB + 0.65, ZB + 0.81); r_ = 0.24 * cam.f / d
-        pic.raw(d - 0.05, f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r_:.1f}" fill="{shade(col, .6)}"/><g transform="rotate({t * (520 if k == 0 else 0):.0f} {x:.1f} {y:.1f})">'
-                          + "".join(f'<ellipse cx="{x:.1f}" cy="{y - r_ * .5:.1f}" rx="{r_ * .25:.1f}" ry="{r_ * .5:.1f}" transform="rotate({j * 120} {x:.1f} {y:.1f})" fill="#eef4ee"/>' for j in range(3)) + "</g>")
-        ftext(pic, x0 + 0.35, YB + 0.12, ZB + 0.82, f"ФВУ-{k + 1}", 0.13, "#ffffff")
+    # слева отдельная комната ФВУ за стеной с дверью
+    pic.box(-4.05, -3.9, YB, YT, ZB, Z0 - 0.15, "#5a606a", top="#6a707a")
+    pic.box(-4.08, -3.87, YB, YB + 2.0, ZB + 0.6, ZB + 1.3, "#3a3020")
+    with _Shift(pic, YB):
+        fvu(pic, -6.4, ZB + 0.9, t=t, on=True, label="ФВУ-1", Hc=YT - YB)
+        fvu(pic, -4.85, ZB + 0.9, t=t, on=False, label="ФВУ-2", Hc=YT - YB)
+    ftext(pic, -5.6, YT - 0.45, ZB + 0.01, "ВЕНТИЛЯЦИЯ", 0.16, "#c8ccd4")
     pic.box(-6.7, -6.55, YT, 1.4, -0.6, -0.45, "#7a828c")
     pic.box(-6.85, -6.4, 1.4, 1.55, -0.65, -0.4, "#7a828c")
     # справа: стеллажи с едой, перегородка, отдельная комната с дизелем, выхлоп наверх
@@ -785,19 +892,29 @@ def cutaway(cam, red=0.0, t=0.0, open_hatch=False):
         for k in range(7):
             pic.jar(4.5 + k * 0.13, y, ZB + 0.35, 0.05, 0.17, ["#d8a03a", "#c0602a", "#7a9a3a", "#a8322a"][(k + row) % 4], lid="#e8e4d8", label=None, fill="pickle" if k % 2 else "tomato")
     pic.box(5.7, 5.85, YB, YT, ZB, Z0 - 0.2, "#4a505a")
-    pic.box(6.2, 7.0, YB, YB + 1.0, ZB + 0.2, ZB + 0.8, "#d8a030", top="#e8b040")
-    ftext(pic, 6.6, YB + 0.45, ZB + 0.82, "ДИЗЕЛЬ", 0.14, "#2a1a08")
-    pic.box(6.85, 6.97, YB + 1.0, 1.8, -0.6, -0.48, "#d86a3a", emissive=True)
-    pic.glow(6.9, -1.0, 0.0, 0.8, "#ff7a3a", 0.25)
+    with _Shift(pic, YB):
+        generator(pic, 5.95, ZB + 0.85, t=t, on=True, Hc=YT - YB)
+    ftext(pic, 6.6, YT - 0.45, ZB + 0.01, "ГЕНЕРАТОР", 0.16, "#c8ccd4")
+    pic.box(6.55, 6.63, YT, 1.8, -0.6, -0.52, "#d86a3a", emissive=True)
+    pic.glow(6.6, -1.0, 0.0, 0.8, "#ff7a3a", 0.25)
     # лестница из гаража (справа от центра)
     LX = 1.9
     pic.poly([(LX - 0.45, YT, -0.5), (LX + 0.45, YT, -0.5), (LX + 0.45, 0, -0.5), (LX - 0.45, 0, -0.5)], "#1e1a18", depth=190)
     for dx in (-0.26, 0.26):
-        pic.box(LX + dx - 0.04, LX + dx + 0.04, YB, 0.25, -0.4, -0.32, "#c8ccd0")
+        pic.box(LX + dx - 0.04, LX + dx + 0.04, YB, -0.42, -0.4, -0.32, "#c8ccd0")
     y = YB + 0.3
-    while y < 0.2:
+    while y < -0.5:
         pic.box(LX - 0.26, LX + 0.26, y, y + 0.05, -0.4, -0.34, "#e0e4e8"); y += 0.38
-    pic.box(LX - 0.55, LX + 0.55, -0.03, 0.06, -0.8, -0.2, "#f2c94c" if not open_hatch else "#1a1210")
+    pic.box(LX - 0.8, LX + 0.8, -0.4, 0.0, -0.95, -0.05, "#8a857a", top="#9a958a")                  # бетонный обод
+    pic.box(LX - 0.62, LX + 0.62, -0.02, 0.05, -0.85, -0.15, "#4a5058", top="#5a6068")                 # стальная рама
+    if not open_hatch:
+        pic.box(LX - 0.56, LX + 0.56, 0.05, 0.16, -0.8, -0.2, "#7a848e", top="#8a949e")                # крышка
+        pic.box(LX - 0.03, LX + 0.03, 0.16, 0.3, -0.53, -0.47, "#3a3e44")
+        w0, w1 = cam.p(LX - 0.24, 0.31, -0.5), cam.p(LX + 0.24, 0.31, -0.5)
+        pic.raw(min(w0[2], w1[2]) - 0.3, f'<ellipse cx="{(w0[0] + w1[0]) / 2:.1f}" cy="{w0[1]:.1f}" rx="{abs(w1[0] - w0[0]) / 2:.1f}" ry="{max(2, abs(w1[0] - w0[0]) * .08):.1f}" fill="none" stroke="#a8321e" stroke-width="{max(2, abs(w1[0] - w0[0]) * .06):.1f}"/>')
+    else:
+        pic.box(LX + 0.5, LX + 0.62, 0.05, 1.17, -0.8, -0.2, "#7a848e", top="#8a949e")
+    pic.box(LX + 0.56, LX + 0.68, 0.0, 0.14, -0.6, -0.4, "#2e3238")                                    # петля
     # бак с соляркой в грунте над бункером
     pic.box(-1.4, 1.2, -2.35, -1.45, -0.6, -0.2, "#f0c830", top="#f8d850", emissive=True)
     for xx in (-1.4, 1.2):

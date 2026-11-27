@@ -153,7 +153,7 @@ def cut_intro(t, b):
     # почти плоский вид, как в части 1: камера далеко, длинный объектив; медленный наезд к гаражу
     c = I.Cam(x=0.2 + 0.6 * ss(w), y=-1.6 + 0.6 * ss(w), z=60, pitch=0.0, f=3900 * (1 + 0.35 * ss(w)))
     p = I.cutaway(c, t=t, red=1)
-    for k, (n, x) in enumerate((("grandpa", -5.2), ("mom", -4.6), ("girl", -4.05), ("kid", -3.55))):
+    for k, (n, x) in enumerate((("grandpa", -3.4), ("mom", -2.8), ("girl", -2.25), ("kid", -1.75))):
         AI.put(p, C.person(n, "side", face="worried", sit=1.0, blink=AI.blink(t, k), rim="#ffd59a"), x, -1.2, Y=-6.2)
     AI.put(p, C.person("hero", "front", face="worried", blink=AI.blink(t, 2), rim="#ffd59a"), 1.1, -0.9, Y=-6.2)
     p.defs.append(sil_filter())
