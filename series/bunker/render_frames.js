@@ -24,7 +24,7 @@ const HTML = s => `<html><body style="margin:0;overflow:hidden;background:#000">
   for await (const line of rl) {
     if (!line.trim()) continue;
     const { i, svg } = JSON.parse(line); const p = await getPage();
-    jobs.push((async () => { await p.setContent(HTML(svg)); await settle(p); const buf = await p.screenshot({ type: 'png' }); release(p); done.set(i, buf); chain = chain.then(flush); })());
+    jobs.push((async () => { let buf; for (let a = 0; a < 4; a++) { try { await p.setContent(HTML(svg), { timeout: 120000 }); await settle(p); buf = await p.screenshot({ type: 'png', timeout: 120000 }); break; } catch (e) { console.error('повтор кадра', i, a + 1); if (a === 3) throw e; } } release(p); done.set(i, buf); chain = chain.then(flush); })());
     if (done.size > 40) await chain;
   }
   await Promise.all(jobs); await chain; await flush(); ff.stdin.end(); await new Promise(r => ff.on('close', r)); await b.close();
