@@ -237,3 +237,5 @@
 [serious] Трое. [pause] Если пустить и их, еды хватит на тринадцать месяцев.
 [slow] Макса ты пустил. [pause] [direct] А их? [pause] Пиши: да или нет.
 ```
+
+**Опубликован 2026-11-28:** «Бункер, день 365: в люк стучат», открыто, https://www.youtube.com/watch?v=9aXJ5orpyjA (файл `video/bunker-A2-youtube-1440p.mp4`, голос `video/voice-A2.mp3`).
